@@ -1,118 +1,83 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { db } from "@/lib/firebase";
 import {
   doc,
-  updateDoc,
-  arrayUnion,
-  arrayRemove,
-  deleteDoc,
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
 } from "firebase/firestore";
-import { db, auth } from "@/lib/firebase";
+import PostImages from "@/components/PostImages";
+import PostContent from "@/components/PostContent";
+import Comments from "@/components/Comments";
 import { useRouter } from "next/navigation";
 
-export default function PostContent({
-  postId,
-  post,
-  onDeleted, // ← 追加
-}: {
-  postId: string;
-  post: any;
-  onDeleted?: () => void; // ← 追加
-}) {
+export default function PostDetailClient({ id }: { id: string }) {
+  const [post, setPost] = useState<any | null>(null);
+  const [comments, setComments] = useState<any[]>([]);
+  const [commentText, setCommentText] = useState("");
   const router = useRouter();
-  const [likeAnim, setLikeAnim] = useState(false);
 
-  const created = post.createdAt?.seconds
-    ? new Date(post.createdAt.seconds * 1000).toLocaleString()
-    : post.createdAt?.toDate
-      ? post.createdAt.toDate().toLocaleString()
-      : "";
+  // 投稿本体
+  useEffect(() => {
+    if (!id) return;
 
-  const toggleLike = async () => {
-    const uid = auth.currentUser?.uid;
-    if (!uid) return;
-
-    const ref = doc(db, "posts", postId);
-    const likes: string[] = post.likes || [];
-    const isLiked = likes.includes(uid);
-
-    setLikeAnim(true);
-    setTimeout(() => setLikeAnim(false), 200);
-
-    await updateDoc(ref, {
-      likes: isLiked ? arrayRemove(uid) : arrayUnion(uid),
+    const unsub = onSnapshot(doc(db, "posts", id), (snap) => {
+      if (snap.exists()) {
+        setPost({ id: snap.id, ...snap.data() });
+      } else {
+        // 削除されたら自動で戻る
+        router.push("/home");
+        router.refresh();
+      }
     });
-  };
 
-  const deletePost = async () => {
-    if (!window.confirm("この投稿を削除しますか？")) return;
+    return () => unsub();
+  }, [id, router]);
 
-    await deleteDoc(doc(db, "posts", postId));
+  // コメント
+  useEffect(() => {
+    if (!id) return;
 
-    // 🔥 削除後の遷移（PostDetailClient から渡される）
-    if (onDeleted) {
-      onDeleted(); // ← ここで router.push + refresh が呼ばれる
-    } else {
-      // 念のためのフォールバック
-      router.push("/home");
-      router.refresh(); // ← これが重要
-    }
-  };
+    const q = query(
+      collection(db, "posts", id, "comments"),
+      orderBy("createdAt", "asc"),
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setComments(list);
+    });
+
+    return () => unsub();
+  }, [id]);
+
+  if (!post)
+    return <p className="p-5 text-[#1A2A4F] opacity-80">読み込み中...</p>;
 
   return (
-    <div className="mb-8">
-      {post.placeName && (
-        <h2 className="text-2xl font-bold mb-3 text-[#1A2A4F]">
-          {post.placeName}
-        </h2>
+    <div className="min-h-screen bg-[#FAF7F2] p-5">
+      {Array.isArray(post.images) && post.images.length > 0 && (
+        <PostImages images={post.images} />
       )}
 
-      <div className="flex items-center gap-3 mb-4">
-        <img
-          src={post.userPhoto || "/default.png"}
-          className="w-12 h-12 rounded-full object-cover"
-        />
-        <div>
-          <div className="font-semibold text-[#1A2A4F]">{post.userName}</div>
-          <div className="text-sm text-gray-700">{created}</div>
-        </div>
-      </div>
+      <PostContent
+        postId={id}
+        post={post}
+        onDeleted={() => {
+          router.push("/home");
+          router.refresh(); // ← これが絶対必要！
+        }}
+      />
 
-      <p className="text-[#1A2A4F] opacity-90 leading-relaxed mb-4 whitespace-pre-line">
-        {post.text}
-      </p>
-
-      {post.location && (
-        <iframe
-          width="100%"
-          height="250"
-          className="rounded-xl shadow-sm mb-4"
-          loading="lazy"
-          src={`https://www.google.com/maps?q=${post.location.lat},${post.location.lng}&z=16&output=embed`}
-        />
-      )}
-
-      <div className="flex items-center gap-4 mt-2">
-        <button
-          onClick={toggleLike}
-          className={`
-            text-2xl transition-transform
-            ${likeAnim ? "scale-125" : "scale-100"}
-          `}
-        >
-          ❤️ {post.likes?.length || 0}
-        </button>
-
-        {auth.currentUser?.uid === post.userId && (
-          <button
-            onClick={deletePost}
-            className="text-gray-400 hover:text-red-500 text-xl transition"
-          >
-            🗑️
-          </button>
-        )}
-      </div>
+      <Comments
+        postId={id}
+        comments={comments}
+        commentText={commentText}
+        setCommentText={setCommentText}
+      />
     </div>
   );
 }

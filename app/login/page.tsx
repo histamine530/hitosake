@@ -1,5 +1,5 @@
+"use client";
 export const dynamic = "force-dynamic";
-("use client");
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";

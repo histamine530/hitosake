@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   addDoc,
   deleteDoc,
@@ -12,6 +12,7 @@ import {
   arrayRemove,
 } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
+import Link from "next/link";
 
 export default function Comments({
   postId,
@@ -25,9 +26,17 @@ export default function Comments({
   setCommentText: (v: string) => void;
 }) {
   const [likeAnimId, setLikeAnimId] = useState<string | null>(null);
+  const [user, setUser] = useState<any | null>(null);
+
+  // 🔐 Auth 状態取得
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((u) => {
+      setUser(u);
+    });
+    return () => unsub();
+  }, []);
 
   const send = async () => {
-    const user = auth.currentUser;
     if (!user) return;
     if (!commentText.trim()) return;
 
@@ -44,7 +53,7 @@ export default function Comments({
   };
 
   const toggleLike = async (commentId: string, likes: string[]) => {
-    const uid = auth.currentUser?.uid;
+    const uid = user?.uid;
     if (!uid) return;
 
     const ref = doc(db, "posts", postId, "comments", commentId);
@@ -112,7 +121,7 @@ export default function Comments({
                   ❤️ {c.likes?.length || 0}
                 </button>
 
-                {auth.currentUser?.uid === c.userId && (
+                {user?.uid === c.userId && (
                   <button
                     onClick={() => remove(c.id)}
                     className="text-gray-400 hover:text-red-500 text-base transition"
@@ -126,17 +135,37 @@ export default function Comments({
         );
       })}
 
-      <div className="flex gap-2 mt-2">
-        <input
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          className="border p-2 flex-1 rounded"
-          placeholder="コメントを入力..."
-        />
-        <button onClick={send} className="bg-[#1A2A4F] text-white px-4 rounded">
-          送信
-        </button>
-      </div>
+      {/* 🔐 未ログイン時の導線 */}
+      {!user && (
+        <div className="text-center mt-4">
+          <p className="text-[#1A2A4F] opacity-80 mb-3">
+            コメントするにはログインが必要です。
+          </p>
+          <Link href="/login">
+            <button className="px-5 py-2 bg-[#1A2A4F] text-white rounded-lg shadow">
+              ログインする
+            </button>
+          </Link>
+        </div>
+      )}
+
+      {/* 🔓 ログイン済み → コメント入力欄 */}
+      {user && (
+        <div className="flex gap-2 mt-2">
+          <input
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            className="border p-2 flex-1 rounded"
+            placeholder="コメントを入力..."
+          />
+          <button
+            onClick={send}
+            className="bg-[#1A2A4F] text-white px-4 rounded"
+          >
+            送信
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import HitoSakeCard from "@/components/HitoSakeCard";
 
 export default function ProfilePage() {
@@ -68,13 +69,20 @@ export default function ProfilePage() {
     );
   }
 
+  // 🔐 未ログイン時の UI（redirect 付き）
   if (!authUser) {
     return (
-      <div className="p-5">
-        <h2 className="text-xl font-bold text-[#1A2A4F] opacity-90">
+      <div className="p-5 text-center">
+        <h2 className="text-xl font-bold text-[#1A2A4F] opacity-90 mb-4">
           プロフィール
         </h2>
-        <p className="text-[#1A2A4F] opacity-80">ログインしてください。</p>
+        <p className="text-[#1A2A4F] opacity-80 mb-6">ログインしてください。</p>
+
+        <Link href="/login?redirect=/profile">
+          <button className="px-5 py-3 bg-[#1A2A4F] text-white rounded-xl shadow">
+            ログインする
+          </button>
+        </Link>
       </div>
     );
   }
@@ -103,6 +111,17 @@ export default function ProfilePage() {
         className="mt-4 px-4 py-2 bg-[#1A2A4F] text-white rounded-lg"
       >
         編集する
+      </button>
+
+      {/* 🔓 ログアウト導線 */}
+      <button
+        onClick={async () => {
+          await auth.signOut();
+          router.push("/"); // ← / に戻す
+        }}
+        className="mt-3 px-4 py-2 bg-gray-200 text-[#1A2A4F] rounded-lg"
+      >
+        ログアウト
       </button>
 
       <h3 className="mt-8 mb-3 text-lg font-semibold text-[#1A2A4F] opacity-90">

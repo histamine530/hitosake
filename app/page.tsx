@@ -5,8 +5,11 @@ import { db } from "@/lib/firebase";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import Link from "next/link";
 import HitoSakeCard from "@/components/HitoSakeCard";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 export default function HomePage() {
+  const [user, setUser] = useState<any | null>(null);
+
   const [animatingIds, setAnimatingIds] = useState<string[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
   const [queryText, setQueryText] = useState("");
@@ -20,6 +23,17 @@ export default function HomePage() {
   const [hitIndex, setHitIndex] = useState(0);
 
   // -------------------------------
+  // Auth 状態取得（閲覧は自由）
+  // -------------------------------
+  useEffect(() => {
+    const auth = getAuth();
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+    });
+    return () => unsub();
+  }, []);
+
+  // -------------------------------
   // Firestore リアルタイム取得
   // -------------------------------
   useEffect(() => {
@@ -27,7 +41,6 @@ export default function HomePage() {
     const unsub = onSnapshot(q, (snap) => {
       const newPosts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-      // 新規投稿アニメーション
       const newIds = newPosts
         .filter((p) => !posts.some((old) => old.id === p.id))
         .map((p) => p.id);
@@ -43,7 +56,7 @@ export default function HomePage() {
     });
 
     return () => unsub();
-  }, []); // ← これが正しい
+  }, []);
 
   // -------------------------------
   // スクロール方向で検索アイコンの表示/非表示
@@ -53,9 +66,9 @@ export default function HomePage() {
       const current = window.scrollY;
 
       if (current > lastScrollY.current) {
-        setShowSearchIcon(false); // 下スクロール → 隠す
+        setShowSearchIcon(false);
       } else {
-        setShowSearchIcon(true); // 上スクロール → 出す
+        setShowSearchIcon(true);
       }
 
       lastScrollY.current = current;
@@ -64,56 +77,6 @@ export default function HomePage() {
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
-  useEffect(() => {
-    if (!queryText) return;
-
-    const t = queryText.toLowerCase();
-
-    const firstHit = posts.find((p) => {
-      const text = (p.text || "").toString().toLowerCase();
-      const place = (p.placeName || "").toString().toLowerCase();
-      const user = (p.userName || "").toString().toLowerCase();
-      return text.includes(t) || place.includes(t) || user.includes(t);
-    });
-
-    if (firstHit && postRefs.current[firstHit.id]) {
-      postRefs.current[firstHit.id]?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-    }
-  }, [queryText, posts]);
-
-  useEffect(() => {
-    const t = queryText.toLowerCase();
-
-    const hits = posts
-      .filter((p) => {
-        const text = (p.text || "").toString().toLowerCase();
-        const place = (p.placeName || "").toString().toLowerCase();
-        const user = (p.userName || "").toString().toLowerCase();
-        return text.includes(t) || place.includes(t) || user.includes(t);
-      })
-      .map((p) => p.id);
-
-    setHitIds(hits);
-    setHitIndex(0); // 検索し直したら最初のヒットへ
-  }, [queryText, posts]);
-
-  useEffect(() => {
-    if (hitIds.length === 0) return;
-
-    const id = hitIds[hitIndex];
-    const el = postRefs.current[id];
-
-    if (el) {
-      el.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-    }
-  }, [hitIndex, hitIds]);
 
   // -------------------------------
   // ローカル検索
@@ -130,6 +93,23 @@ export default function HomePage() {
 
   return (
     <div className="p-5 relative min-h-screen bg-[#FAF7F2]">
+      {/* 🔐 ログイン / プロフィール */}
+      <div className="fixed top-4 left-4 z-40">
+        {user ? (
+          <Link href="/profile">
+            <button className="px-4 py-2 bg-white shadow rounded-lg text-[#1A2A4F]">
+              プロフィール
+            </button>
+          </Link>
+        ) : (
+          <Link href="/login">
+            <button className="px-4 py-2 bg-white shadow rounded-lg text-[#1A2A4F]">
+              ログイン
+            </button>
+          </Link>
+        )}
+      </div>
+
       {/* 🔍 検索アイコン */}
       <button
         onClick={() => setSearchOpen(!searchOpen)}
@@ -143,34 +123,22 @@ export default function HomePage() {
         🔍
       </button>
 
-      {/* 🔍 下からキビキビ出る検索バー（右寄り） */}
+      {/* 🔍 検索バー */}
       {searchOpen && (
         <div
           className="
             fixed top-16 right-4 z-30
             transition-all duration-150
           "
-          style={{
-            opacity: searchOpen ? 1 : 0,
-            transform: searchOpen ? "translateY(0)" : "translateY(10px)",
-          }}
         >
           <input
             value={queryText}
             onChange={(e) => setQueryText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                setSearchOpen(false); // ← Enter で検索バーを閉じる
-              }
-            }}
             placeholder="検索…"
             className="
-    w-64 p-3
-    rounded-lg shadow-md
-    bg-white
-    text-[#1A2A4F] placeholder-[#1A2A4F]/50
-    outline-none
-  "
+              w-64 p-3 rounded-lg shadow-md bg-white
+              text-[#1A2A4F] placeholder-[#1A2A4F]/50 outline-none
+            "
           />
         </div>
       )}
@@ -183,7 +151,6 @@ export default function HomePage() {
         <p className="mt-3 text-[#1A2A4F] opacity-80">まだ投稿がありません。</p>
       )}
 
-      {/* 0件メッセージ */}
       {filtered.length === 0 && queryText && (
         <p className="text-center text-[#1A2A4F] opacity-60 mt-10">
           まだ見つかりませんでした…
@@ -191,49 +158,24 @@ export default function HomePage() {
       )}
 
       <div className="flex flex-col gap-4 mt-4">
-        {posts.map((p) => {
-          const t = queryText.toLowerCase();
-
-          const isMatch =
-            (p.text || "").toString().toLowerCase().includes(t) ||
-            (p.placeName || "").toString().toLowerCase().includes(t) ||
-            (p.userName || "").toString().toLowerCase().includes(t);
-
-          return (
-            <div
-              key={p.id}
-              ref={(el) => {
-                postRefs.current[p.id] = el;
-              }}
-              className={`
-          bg-white rounded-2xl shadow-sm p-5
-          transition-all duration-300
-          ${
-            animatingIds.includes(p.id)
-              ? "opacity-0 translate-y-3"
-              : "opacity-100 translate-y-0"
-          }
-          ${
-            queryText ? (isMatch ? "opacity-100" : "opacity-40") : "opacity-100"
-          }
-        `}
-            >
-              <Link
-                href={`/post/${p.id}`}
-                className="no-underline text-inherit"
-              >
-                <HitoSakeCard
-                  images={p.images || []}
-                  placeName={p.placeName}
-                  text={p.text}
-                  userPhoto={p.userPhoto}
-                  userName={p.userName}
-                  createdAt={p.createdAt}
-                />
-              </Link>
-            </div>
-          );
-        })}
+        {filtered.map((p) => (
+          <div
+            key={p.id}
+            className={`
+              bg-white rounded-2xl shadow-sm p-5
+              transition-all duration-300
+              ${
+                animatingIds.includes(p.id)
+                  ? "opacity-0 translate-y-3"
+                  : "opacity-100 translate-y-0"
+              }
+            `}
+          >
+            <Link href={`/post/${p.id}`} className="no-underline text-inherit">
+              <HitoSakeCard {...p} />
+            </Link>
+          </div>
+        ))}
       </div>
     </div>
   );

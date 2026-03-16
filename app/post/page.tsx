@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { db, storage } from "@/lib/firebase";
 import {
   addDoc,
@@ -10,23 +10,29 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { getAuth } from "firebase/auth";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import Link from "next/link";
 
 export default function PostPage() {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [location, setLocation] = useState<any>(null);
+  const [user, setUser] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // 🔐 Auth 状態取得
+  useEffect(() => {
+    const auth = getAuth();
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setLoading(false);
+    });
+    return () => unsub();
+  }, []);
 
   const handlePost = async () => {
-    const auth = getAuth();
-    const user = auth.currentUser;
+    if (!user) return;
 
-    if (!user) {
-      alert("ログインが必要です");
-      return;
-    }
-
-    // Firestore のユーザ情報を取得
     const userRef = doc(db, "users", user.uid);
     const snap = await getDoc(userRef);
     const profile = snap.data();
@@ -54,7 +60,6 @@ export default function PostPage() {
     setFiles([]);
   };
 
-
   const getLocation = () => {
     navigator.geolocation.getCurrentPosition((pos) => {
       setLocation({
@@ -64,6 +69,37 @@ export default function PostPage() {
     });
   };
 
+  // 🔄 読み込み中
+  if (loading) {
+    return (
+      <div className="p-5">
+        <h2 className="text-xl font-bold text-[#1A2A4F]">今日の一杯を投稿</h2>
+        <p className="text-[#1A2A4F] opacity-80">読み込み中…</p>
+      </div>
+    );
+  }
+
+  // 🔐 未ログイン時の UI（ログインボタン付き）
+  if (!user) {
+    return (
+      <div className="p-5 text-center">
+        <h2 className="text-xl font-bold text-[#1A2A4F] mb-4">
+          今日の一杯を投稿
+        </h2>
+        <p className="text-[#1A2A4F] opacity-80 mb-6">
+          投稿するにはログインが必要です。
+        </p>
+
+        <Link href="/login">
+          <button className="px-5 py-3 bg-[#1A2A4F] text-white rounded-xl shadow">
+            ログインする
+          </button>
+        </Link>
+      </div>
+    );
+  }
+
+  // 🔓 ログイン済み → 投稿フォーム表示
   return (
     <div className="p-5 bg-[#FAF7F2] min-h-screen">
       <h2 className="text-xl font-bold mb-5 text-[#1A2A4F]">

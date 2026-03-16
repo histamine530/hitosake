@@ -34,11 +34,14 @@ export default function SetupPage() {
     try {
       setLoading(true);
 
+      // Firestore にユーザー情報を保存
       await setDoc(doc(db, "users", user.uid), {
-        name: name.trim(),
+        userName: name.trim(),
+        userPhoto: "",
         createdAt: new Date(),
       });
 
+      // 保存後はホームへ
       router.push("/");
     } catch (error) {
       console.error("保存失敗:", error);

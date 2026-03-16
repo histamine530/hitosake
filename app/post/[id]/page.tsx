@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 // app/post/[id]/page.tsx
 import PostDetailClient from "./PostDetailClient";
 

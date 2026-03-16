@@ -18,25 +18,13 @@ export default function HomePage() {
   const [showSearchIcon, setShowSearchIcon] = useState(true);
 
   const lastScrollY = useRef(0);
-  const postRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  const [hitIds, setHitIds] = useState<string[]>([]);
-  const [hitIndex, setHitIndex] = useState(0);
-
-  // -------------------------------
-  // Auth 状態取得（閲覧は自由）
-  // -------------------------------
   useEffect(() => {
     const auth = getAuth();
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-    });
+    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
     return () => unsub();
   }, []);
 
-  // -------------------------------
-  // Firestore リアルタイム取得
-  // -------------------------------
   useEffect(() => {
     const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
@@ -57,21 +45,12 @@ export default function HomePage() {
     });
 
     return () => unsub();
-  }, []);
+  }, [posts]);
 
-  // -------------------------------
-  // スクロール方向で検索アイコンの表示/非表示
-  // -------------------------------
   useEffect(() => {
     const onScroll = () => {
       const current = window.scrollY;
-
-      if (current > lastScrollY.current) {
-        setShowSearchIcon(false);
-      } else {
-        setShowSearchIcon(true);
-      }
-
+      setShowSearchIcon(current <= lastScrollY.current);
       lastScrollY.current = current;
     };
 
@@ -79,23 +58,19 @@ export default function HomePage() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // -------------------------------
-  // ローカル検索
-  // -------------------------------
   const filtered = posts.filter((p) => {
     const t = queryText.toLowerCase();
-
-    const text = (p.text || "").toString().toLowerCase();
-    const place = (p.placeName || "").toString().toLowerCase();
-    const user = (p.userName || "").toString().toLowerCase();
-
-    return text.includes(t) || place.includes(t) || user.includes(t);
+    return (
+      (p.text || "").toLowerCase().includes(t) ||
+      (p.placeName || "").toLowerCase().includes(t) ||
+      (p.userName || "").toLowerCase().includes(t)
+    );
   });
 
   return (
     <div className="p-5 relative min-h-screen bg-[#FAF7F2]">
-      {/* 🔐 ログイン / プロフィール */}
-      <div className="fixed top-4 left-4 z-40">
+      {/* 🔐 ログイン / プロフィール（右上へ移動） */}
+      <div className="fixed top-4 right-4 z-40">
         {user ? (
           <Link href="/profile">
             <button className="px-4 py-2 bg-white shadow rounded-lg text-[#1A2A4F]">
@@ -111,11 +86,11 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* 🔍 検索アイコン */}
+      {/* 🔍 検索アイコン（ログインボタンと重ならないように右16へ） */}
       <button
         onClick={() => setSearchOpen(!searchOpen)}
         className={`
-          fixed top-4 right-4 z-40
+          fixed top-4 right-16 z-40
           text-[#1A2A4F] opacity-70 hover:opacity-100
           transition-all duration-150
           ${showSearchIcon ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2"}
@@ -126,20 +101,12 @@ export default function HomePage() {
 
       {/* 🔍 検索バー */}
       {searchOpen && (
-        <div
-          className="
-            fixed top-16 right-4 z-30
-            transition-all duration-150
-          "
-        >
+        <div className="fixed top-16 right-4 z-30 transition-all duration-150">
           <input
             value={queryText}
             onChange={(e) => setQueryText(e.target.value)}
             placeholder="検索…"
-            className="
-              w-64 p-3 rounded-lg shadow-md bg-white
-              text-[#1A2A4F] placeholder-[#1A2A4F]/50 outline-none
-            "
+            className="w-64 p-3 rounded-lg shadow-md bg-white text-[#1A2A4F] placeholder-[#1A2A4F]/50 outline-none"
           />
         </div>
       )}

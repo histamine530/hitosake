@@ -139,13 +139,9 @@ export default function ProfilePage() {
 
       <div className="flex flex-col gap-6 mt-3">
         {posts.map((p) => (
-          <div className="flex flex-col gap-6 mt-3">
-            {posts.map((p) => (
-              <Link key={p.id} href={`/post/${p.id}`}>
-                <HitoSakeCard {...p} />
-              </Link>
-            ))}
-          </div>
+          <Link key={p.id} href={`/post/${p.id}`}>
+            <HitoSakeCard {...p} />
+          </Link>
         ))}
       </div>
     </div>

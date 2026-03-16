@@ -1,6 +1,5 @@
 "use client";
 export const dynamic = "force-dynamic";
-
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import { signInAnonymously } from "firebase/auth";

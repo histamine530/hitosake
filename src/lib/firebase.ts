@@ -13,9 +13,11 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// ★ ここが超重要：複数初期化を防ぐ
+// ★ 複数初期化を防ぐ
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
+// ★ Auth は “クライアント側でのみ” 初期化する
+export const auth = typeof window !== "undefined" ? getAuth(app) : null;
+
 export const db = getFirestore(app);
-export const auth = getAuth(app);
 export const storage = getStorage(app);

@@ -1,5 +1,6 @@
 "use client";
 export const dynamic = "force-dynamic";
+
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import { signInAnonymously } from "firebase/auth";
@@ -13,6 +14,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    // ★ SSR では auth が null なのでガード
+    if (!auth) {
+      console.warn("Auth is not initialized yet.");
+      return;
+    }
+
     try {
       setLoading(true);
 

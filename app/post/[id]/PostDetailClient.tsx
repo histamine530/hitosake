@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import {
   doc,
-  getDoc,
   collection,
   query,
   orderBy,
@@ -13,11 +12,13 @@ import {
 import PostImages from "@/components/PostImages";
 import PostContent from "@/components/PostContent";
 import Comments from "@/components/Comments";
+import { useRouter } from "next/navigation";
 
 export default function PostDetailClient({ id }: { id: string }) {
   const [post, setPost] = useState<any | null>(null);
   const [comments, setComments] = useState<any[]>([]);
   const [commentText, setCommentText] = useState("");
+  const router = useRouter();
 
   // 投稿本体
   useEffect(() => {
@@ -26,11 +27,14 @@ export default function PostDetailClient({ id }: { id: string }) {
     const unsub = onSnapshot(doc(db, "posts", id), (snap) => {
       if (snap.exists()) {
         setPost({ id: snap.id, ...snap.data() });
+      } else {
+        // 削除されたら自動で戻る
+        router.push("/home");
       }
     });
 
     return () => unsub();
-  }, [id]);
+  }, [id, router]);
 
   // コメント
   useEffect(() => {
@@ -58,7 +62,11 @@ export default function PostDetailClient({ id }: { id: string }) {
         <PostImages images={post.images} />
       )}
 
-      <PostContent postId={id} post={post} />
+      <PostContent
+        postId={id}
+        post={post}
+        onDeleted={() => router.push("/home")} // ← 追加
+      />
 
       <Comments
         postId={id}

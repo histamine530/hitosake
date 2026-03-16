@@ -70,8 +70,7 @@ export default function PostDetailClient({ id }: { id: string }) {
         postId={id}
         post={post}
         onDeleted={() => {
-          router.push("/home");
-          setTimeout(() => router.refresh(), 120);
+          router.back();
         }}
       />
 

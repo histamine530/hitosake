@@ -20,6 +20,7 @@ export default function PostPage() {
   const [location, setLocation] = useState<any>(null);
   const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [posting, setPosting] = useState(false); // ← 投稿中フラグ
 
   // 🔐 Auth 状態取得
   useEffect(() => {
@@ -32,7 +33,9 @@ export default function PostPage() {
   }, []);
 
   const handlePost = async () => {
-    if (!user) return;
+    if (!user || posting) return;
+
+    setPosting(true); // ← 投稿中に切り替え
 
     const userRef = doc(db, "users", user.uid);
     const snap = await getDoc(userRef);
@@ -57,8 +60,10 @@ export default function PostPage() {
       createdAt: serverTimestamp(),
     });
 
+    // 🎉 投稿完了 → 入力欄クリア
     setText("");
     setFiles([]);
+    setPosting(false);
   };
 
   const getLocation = () => {
@@ -80,7 +85,7 @@ export default function PostPage() {
     );
   }
 
-  // 🔐 未ログイン時の UI（ログインボタン付き）
+  // 🔐 未ログイン時の UI
   if (!user) {
     return (
       <div className="p-5 text-center">
@@ -100,7 +105,7 @@ export default function PostPage() {
     );
   }
 
-  // 🔓 ログイン済み → 投稿フォーム表示
+  // 🔓 ログイン済み → 投稿フォーム
   return (
     <div className="p-5 bg-[#FAF7F2] min-h-screen">
       <h2 className="text-xl font-bold mb-5 text-[#1A2A4F]">
@@ -122,14 +127,18 @@ export default function PostPage() {
         />
       </div>
 
-      {/* メモ */}
+      {/* メモ（iPhoneで薄くならないように修正済み） */}
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="今日の一杯のメモ"
         className="w-full p-3 rounded-lg border border-gray-300
+                   bg-white text-[#1A2A4F]
+                   placeholder:text-gray-400
+                   focus:text-[#1A2A4F]
+                   focus:placeholder:text-gray-300
                    focus:outline-none focus:ring-2 focus:ring-[#1A2A4F]
-                   mb-4 bg-white"
+                   mb-4"
         rows={4}
       />
 
@@ -142,13 +151,14 @@ export default function PostPage() {
         位置情報を取得
       </button>
 
-      {/* 投稿ボタン */}
+      {/* 投稿ボタン（ローディング対応） */}
       <button
         onClick={handlePost}
+        disabled={posting}
         className="w-full py-3 rounded-lg bg-[#1A2A4F] text-white font-semibold
-                   hover:bg-[#16213d] transition"
+                   hover:bg-[#16213d] transition disabled:opacity-50"
       >
-        投稿する
+        {posting ? "投稿中…" : "投稿する"}
       </button>
     </div>
   );

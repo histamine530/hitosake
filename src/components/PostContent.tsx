@@ -14,9 +14,11 @@ import { useRouter } from "next/navigation";
 export default function PostContent({
   postId,
   post,
+  onDeleted, // ← 追加
 }: {
   postId: string;
   post: any;
+  onDeleted?: () => void; // ← 追加
 }) {
   const router = useRouter();
   const [likeAnim, setLikeAnim] = useState(false);
@@ -48,8 +50,13 @@ export default function PostContent({
 
     await deleteDoc(doc(db, "posts", postId));
 
-    // 🔥 削除後にタイムラインへ戻る
-    router.push("/home");
+    // 🔥 削除後の遷移（PostDetailClient から渡される）
+    if (onDeleted) {
+      onDeleted();
+    } else {
+      // 念のためのフォールバック
+      router.push("/home");
+    }
   };
 
   return (

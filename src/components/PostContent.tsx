@@ -1,83 +1,110 @@
 "use client";
 
+import { useState } from "react";
 import {
-  deleteDoc,
   doc,
   updateDoc,
   arrayUnion,
   arrayRemove,
+  deleteDoc,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { useState } from "react";
-import { getAuth } from "firebase/auth";
+import { db, auth } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
 
 export default function PostContent({
   postId,
   post,
-  onDeleted,
 }: {
   postId: string;
   post: any;
-  onDeleted?: () => void;
 }) {
-  const auth = getAuth();
-  const user = auth.currentUser;
-
+  const router = useRouter();
   const [likeAnim, setLikeAnim] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
-  const isLiked = user && post.likes?.includes(user.uid);
+  const created = post.createdAt?.seconds
+    ? new Date(post.createdAt.seconds * 1000).toLocaleString()
+    : post.createdAt?.toDate
+      ? post.createdAt.toDate().toLocaleString()
+      : "";
 
-  // ❤️ いいね
   const toggleLike = async () => {
-    if (!user) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
 
     const ref = doc(db, "posts", postId);
+    const likes: string[] = post.likes || [];
+    const isLiked = likes.includes(uid);
 
     setLikeAnim(true);
     setTimeout(() => setLikeAnim(false), 200);
 
     await updateDoc(ref, {
-      likes: isLiked ? arrayRemove(user.uid) : arrayUnion(user.uid),
+      likes: isLiked ? arrayRemove(uid) : arrayUnion(uid),
     });
   };
 
-  // 🗑️ 削除
-  const handleDelete = async () => {
-    if (!confirm("本当に削除しますか？")) return;
+  const deletePost = async () => {
+    if (!window.confirm("この投稿を削除しますか？")) return;
 
-    setDeleting(true);
     await deleteDoc(doc(db, "posts", postId));
 
-    if (onDeleted) onDeleted();
+    // 🔥 削除後にタイムラインへ戻る
+    router.push("/home");
   };
 
   return (
-    <div className="mt-4">
-      {/* テキスト */}
-      <p className="text-[#1A2A4F] whitespace-pre-wrap mb-4">{post.text}</p>
-
-      {/* ❤️ いいね */}
-      <button
-        onClick={toggleLike}
-        className={`
-          text-xl w-fit transition-transform
-          ${likeAnim ? "scale-125" : "scale-100"}
-        `}
-      >
-        ❤️ {post.likes?.length || 0}
-      </button>
-
-      {/* 🗑️ 削除（投稿者本人のみ） */}
-      {user?.uid === post.userId && (
-        <button
-          onClick={handleDelete}
-          disabled={deleting}
-          className="text-gray-400 hover:text-red-500 text-xs transition w-fit block mt-1 disabled:opacity-50"
-        >
-          🗑️
-        </button>
+    <div className="mb-8">
+      {post.placeName && (
+        <h2 className="text-2xl font-bold mb-3 text-[#1A2A4F]">
+          {post.placeName}
+        </h2>
       )}
+
+      <div className="flex items-center gap-3 mb-4">
+        <img
+          src={post.userPhoto || "/default.png"}
+          className="w-12 h-12 rounded-full object-cover"
+        />
+        <div>
+          <div className="font-semibold text-[#1A2A4F]">{post.userName}</div>
+          <div className="text-sm text-gray-700">{created}</div>
+        </div>
+      </div>
+
+      <p className="text-[#1A2A4F] opacity-90 leading-relaxed mb-4 whitespace-pre-line">
+        {post.text}
+      </p>
+
+      {post.location && (
+        <iframe
+          width="100%"
+          height="250"
+          className="rounded-xl shadow-sm mb-4"
+          loading="lazy"
+          src={`https://www.google.com/maps?q=${post.location.lat},${post.location.lng}&z=16&output=embed`}
+        />
+      )}
+
+      <div className="flex items-center gap-4 mt-2">
+        <button
+          onClick={toggleLike}
+          className={`
+            text-2xl transition-transform
+            ${likeAnim ? "scale-125" : "scale-100"}
+          `}
+        >
+          ❤️ {post.likes?.length || 0}
+        </button>
+
+        {auth.currentUser?.uid === post.userId && (
+          <button
+            onClick={deletePost}
+            className="text-gray-400 hover:text-red-500 text-xl transition"
+          >
+            🗑️
+          </button>
+        )}
+      </div>
     </div>
   );
 }

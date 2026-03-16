@@ -70,7 +70,7 @@ export default function HomePage() {
   return (
     <div className="p-5 relative min-h-screen bg-[#FAF7F2]">
       {/* 🔐 ログイン / プロフィール（右上へ移動） */}
-      <div className="fixed top-4 right-4 z-40">
+      <div className="fixed top-4 right-20 z-40">
         {user ? (
           <Link href="/profile">
             <button className="px-4 py-2 bg-white shadow rounded-lg text-[#1A2A4F]">
@@ -86,15 +86,15 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* 🔍 検索アイコン（ログインボタンと重ならないように右16へ） */}
+      {/* 🔍 検索アイコン（右端） */}
       <button
         onClick={() => setSearchOpen(!searchOpen)}
         className={`
-          fixed top-4 right-16 z-40
-          text-[#1A2A4F] opacity-70 hover:opacity-100
-          transition-all duration-150
-          ${showSearchIcon ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2"}
-        `}
+    fixed top-4 right-4 z-40
+    text-[#1A2A4F] opacity-70 hover:opacity-100
+    transition-all duration-150
+    ${showSearchIcon ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2"}
+  `}
       >
         🔍
       </button>

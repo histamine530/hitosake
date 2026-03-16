@@ -13,11 +13,10 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// ★ 複数初期化を防ぐ
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// ★ Auth は “クライアント側でのみ” 初期化する
-export const auth = typeof window !== "undefined" ? getAuth(app) : null;
+// ★ これで OK（SSR でも問題なし）
+export const auth = getAuth(app);
 
 export const db = getFirestore(app);
 export const storage = getStorage(app);

@@ -28,9 +28,8 @@ export default function PostDetailClient({ id }: { id: string }) {
       if (snap.exists()) {
         setPost({ id: snap.id, ...snap.data() });
       } else {
-        // 投稿が削除されたら自動で戻る
+        // 削除されたら自動で戻る
         router.push("/home");
-        router.refresh(); // ← これが重要！
       }
     });
 
@@ -66,10 +65,7 @@ export default function PostDetailClient({ id }: { id: string }) {
       <PostContent
         postId={id}
         post={post}
-        onDeleted={() => {
-          router.push("/home");
-          router.refresh(); // ← 削除後に本物のタイムラインへ戻す鍵
-        }}
+        onDeleted={() => router.push("/home")} // ← 追加
       />
 
       <Comments

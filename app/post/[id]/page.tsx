@@ -1,13 +1,14 @@
 export const dynamic = "force-dynamic";
-// app/post/[id]/page.tsx
-import PostDetailClient from "./PostDetailClient";
+
+import PostDetailClient from "@/components/PostDetailClient";
 
 export default async function PostDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params; // ← Next.js 16 の正しい params unwrap
+  // Next.js 16 の params は Promise なので await が必要
+  const { id } = await params;
 
   return <PostDetailClient id={id} />;
 }

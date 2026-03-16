@@ -14,11 +14,11 @@ import { useRouter } from "next/navigation";
 export default function PostContent({
   postId,
   post,
-  onDeleted,
+  onDeleted, // ← 追加
 }: {
   postId: string;
   post: any;
-  onDeleted?: () => void;
+  onDeleted?: () => void; // ← 追加
 }) {
   const router = useRouter();
   const [likeAnim, setLikeAnim] = useState(false);
@@ -26,8 +26,8 @@ export default function PostContent({
   const created = post.createdAt?.seconds
     ? new Date(post.createdAt.seconds * 1000).toLocaleString()
     : post.createdAt?.toDate
-    ? post.createdAt.toDate().toLocaleString()
-    : "";
+      ? post.createdAt.toDate().toLocaleString()
+      : "";
 
   const toggleLike = async () => {
     const uid = auth.currentUser?.uid;
@@ -50,11 +50,13 @@ export default function PostContent({
 
     await deleteDoc(doc(db, "posts", postId));
 
+    // 🔥 削除後の遷移（PostDetailClient から渡される）
     if (onDeleted) {
-      onDeleted();
+      onDeleted(); // ← ここで router.push + refresh が呼ばれる
     } else {
+      // 念のためのフォールバック
       router.push("/home");
-      router.refresh();
+      router.refresh(); // ← これが重要
     }
   };
 
@@ -94,9 +96,10 @@ export default function PostContent({
       <div className="flex items-center gap-4 mt-2">
         <button
           onClick={toggleLike}
-          className={`text-2xl transition-transform ${
-            likeAnim ? "scale-125" : "scale-100"
-          }`}
+          className={`
+            text-2xl transition-transform
+            ${likeAnim ? "scale-125" : "scale-100"}
+          `}
         >
           ❤️ {post.likes?.length || 0}
         </button>

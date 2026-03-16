@@ -52,10 +52,11 @@ export default function PostContent({
 
     // 🔥 削除後の遷移（PostDetailClient から渡される）
     if (onDeleted) {
-      onDeleted();
+      onDeleted(); // ← ここで router.push + refresh が呼ばれる
     } else {
       // 念のためのフォールバック
       router.push("/home");
+      router.refresh(); // ← これが重要
     }
   };
 

@@ -161,7 +161,13 @@ export default function Comments({
           />
           <button
             onClick={send}
-            className="bg-[#1A2A4F] text-white px-4 rounded"
+            className="
+    bg-[#1A2A4F]
+    text-white
+    [-webkit-text-fill-color:white]
+    [color:white]
+    px-4 rounded
+  "
           >
             送信
           </button>

@@ -139,14 +139,12 @@ export default function ProfilePage() {
 
       <div className="flex flex-col gap-6 mt-3">
         {posts.map((p) => (
-          <div key={p.id}>
-            <HitoSakeCard
-              {...p}
-              onDeleted={() => {
-                // Firestore が自動で一覧を更新するので何もしなくてもOK
-                console.log("削除されました");
-              }}
-            />
+          <div className="flex flex-col gap-6 mt-3">
+            {posts.map((p) => (
+              <Link key={p.id} href={`/post/${p.id}`}>
+                <HitoSakeCard {...p} />
+              </Link>
+            ))}
           </div>
         ))}
       </div>

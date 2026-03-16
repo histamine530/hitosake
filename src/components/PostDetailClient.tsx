@@ -28,13 +28,13 @@ export default function PostDetailClient({ id }: { id: string }) {
       if (snap.exists()) {
         setPost({ id: snap.id, ...snap.data() });
       } else {
-        // 削除されたら自動で戻る
-        router.push("/home");
+        // ❌ ここで push しない（削除後の遷移は onDeleted が担当）
+        setPost(null);
       }
     });
 
     return () => unsub();
-  }, [id, router]);
+  }, [id]);
 
   // コメント
   useEffect(() => {

@@ -52,9 +52,6 @@ export default function PostContent({
 
     if (onDeleted) {
       onDeleted();
-    } else {
-      router.push("/home");
-      setTimeout(() => router.refresh(), 50);
     }
   };
 

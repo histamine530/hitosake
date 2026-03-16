@@ -9,25 +9,21 @@ import { useState } from "react";
 export default function LoginPage() {
   const router = useRouter();
   const params = useSearchParams();
-  const redirect = params.get("redirect") || "/"; // ← 元のページへ戻す
+  const redirect = params.get("redirect") || "/";
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     try {
       setLoading(true);
 
-      // 匿名ログイン
       const result = await signInAnonymously(auth);
       const user = result.user;
 
-      // Firestore にユーザー情報があるか確認（初回判定）
       const snap = await getDoc(doc(db, "users", user.uid));
 
       if (!snap.exists()) {
-        // 初回 → ユーザー名設定へ
         router.push("/setup");
       } else {
-        // 2回目以降 → 元のページへ戻す
         router.push(redirect);
       }
     } catch (error) {

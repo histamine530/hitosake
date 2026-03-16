@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-import HomeClient from "@/components/HomeClient";
+import HomeClient from "../../components/HomeClient";
 
 export default function HomePage() {
   return <HomeClient />;

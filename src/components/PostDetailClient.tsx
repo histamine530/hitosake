@@ -15,7 +15,7 @@ import Comments from "@/components/Comments";
 import { useRouter } from "next/navigation";
 
 export default function PostDetailClient({ id }: { id: string }) {
-  const [post, setPost] = useState<any | null>(null);
+  const [post, setPost] = useState<any | null>(undefined); // ← undefined と null を区別
   const [comments, setComments] = useState<any[]>([]);
   const [commentText, setCommentText] = useState("");
   const router = useRouter();
@@ -28,7 +28,7 @@ export default function PostDetailClient({ id }: { id: string }) {
       if (snap.exists()) {
         setPost({ id: snap.id, ...snap.data() });
       } else {
-        // ❌ ここで push しない（削除後の遷移は onDeleted が担当）
+        // 削除されたら post=null にする（UIは描画しない）
         setPost(null);
       }
     });
@@ -53,7 +53,11 @@ export default function PostDetailClient({ id }: { id: string }) {
     return () => unsub();
   }, [id]);
 
-  if (!post)
+  // 🔥 削除された直後は何も描画しない（これが重要）
+  if (post === null) return null;
+
+  // 初回読み込み中だけ表示
+  if (post === undefined)
     return <p className="p-5 text-[#1A2A4F] opacity-80">読み込み中...</p>;
 
   return (

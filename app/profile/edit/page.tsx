@@ -12,6 +12,7 @@ export default function EditProfilePage() {
   const [userPhoto, setUserPhoto] = useState("");
   const [preview, setPreview] = useState("");
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
 
   const router = useRouter();
 
@@ -38,6 +39,7 @@ export default function EditProfilePage() {
     if (!file) return;
 
     setPreview(URL.createObjectURL(file));
+    setUploading(true);
 
     const u = auth.currentUser;
     if (!u) return;
@@ -47,11 +49,17 @@ export default function EditProfilePage() {
     const url = await getDownloadURL(storageRef);
 
     setUserPhoto(url);
+    setUploading(false);
   };
 
   const save = async () => {
     const u = auth.currentUser;
     if (!u) return;
+
+    if (!userPhoto) {
+      alert("画像がまだアップロードされていません。");
+      return;
+    }
 
     await updateDoc(doc(db, "users", u.uid), {
       userName,
@@ -78,16 +86,22 @@ export default function EditProfilePage() {
         />
       </div>
 
-      {/* 画像アップロード */}
-      <label className="block mb-2 text-[#1A2A4F] font-semibold opacity-90">
-        アイコン画像
+      {/* 画像アップロード（iPhoneでも見やすいボタン） */}
+      <label className="inline-block px-4 py-2 bg-[#1A2A4F] text-white rounded-lg cursor-pointer mb-6">
+        画像を選ぶ
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleFile}
+          className="hidden"
+        />
       </label>
-      <input
-        type="file"
-        accept="image/*"
-        onChange={handleFile}
-        className="mb-6"
-      />
+
+      {uploading && (
+        <p className="text-sm text-[#1A2A4F] opacity-70 mb-4">
+          画像をアップロード中…
+        </p>
+      )}
 
       {/* ユーザ名 */}
       <label className="block mb-2 text-[#1A2A4F] font-semibold opacity-90">
@@ -102,9 +116,10 @@ export default function EditProfilePage() {
 
       <button
         onClick={save}
+        disabled={uploading}
         className="w-full py-3 bg-[#1A2A4F] text-white rounded-lg font-semibold hover:bg-[#16213d]"
       >
-        保存する
+        {uploading ? "アップロード中…" : "保存する"}
       </button>
     </div>
   );

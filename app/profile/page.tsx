@@ -23,22 +23,29 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  // 🔐 ログイン状態の監視
   useEffect(() => {
-    const unsub = auth.onAuthStateChanged(async (u) => {
+    const unsub = auth.onAuthStateChanged((u) => {
       setAuthUser(u);
-
-      if (u) {
-        const snap = await getDoc(doc(db, "users", u.uid));
-        if (snap.exists()) {
-          setProfile(snap.data());
-        }
-      }
-
       setLoading(false);
     });
     return () => unsub();
   }, []);
 
+  // 👤 プロフィール情報をリアルタイム購読
+  useEffect(() => {
+    if (!authUser) return;
+
+    const unsub = onSnapshot(doc(db, "users", authUser.uid), (snap) => {
+      if (snap.exists()) {
+        setProfile(snap.data());
+      }
+    });
+
+    return () => unsub();
+  }, [authUser]);
+
+  // 📝 自分の投稿一覧
   useEffect(() => {
     if (!authUser) return;
 
@@ -70,7 +77,6 @@ export default function ProfilePage() {
     );
   }
 
-  // 🔐 未ログイン時の UI（redirect 付き）
   if (!authUser) {
     return (
       <div className="p-5 text-center">
@@ -114,11 +120,10 @@ export default function ProfilePage() {
         編集する
       </button>
 
-      {/* 🔓 ログアウト導線 */}
       <button
         onClick={async () => {
           await auth.signOut();
-          router.push("/"); // ← / に戻す
+          router.push("/");
         }}
         className="mt-3 px-4 py-2 bg-gray-200 text-[#1A2A4F] rounded-lg"
       >
@@ -136,14 +141,7 @@ export default function ProfilePage() {
       <div className="flex flex-col gap-6 mt-3">
         {posts.map((p) => (
           <div key={p.id} onClick={() => router.push(`/post/${p.id}`)}>
-            <HitoSakeCard
-              images={p.images || []}
-              placeName={p.placeName}
-              text={p.text}
-              userPhoto={p.userPhoto}
-              userName={p.userName}
-              createdAt={p.createdAt}
-            />
+            <HitoSakeCard {...p} />
           </div>
         ))}
       </div>

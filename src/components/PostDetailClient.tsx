@@ -65,7 +65,10 @@ export default function PostDetailClient({ id }: { id: string }) {
       <PostContent
         postId={id}
         post={post}
-        onDeleted={() => router.push("/home")} // ← 追加
+        onDeleted={() => {
+          router.push("/home");
+          setTimeout(() => router.refresh(), 120);
+        }}
       />
 
       <Comments

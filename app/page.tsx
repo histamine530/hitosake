@@ -19,12 +19,18 @@ export default function HomePage() {
 
   const lastScrollY = useRef(0);
 
+  // -------------------------------
+  // Auth 状態取得（Google / 匿名どちらも対応）
+  // -------------------------------
   useEffect(() => {
     const auth = getAuth();
     const unsub = onAuthStateChanged(auth, (u) => setUser(u));
     return () => unsub();
   }, []);
 
+  // -------------------------------
+  // Firestore リアルタイム取得（依存配列は空に）
+  // -------------------------------
   useEffect(() => {
     const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
@@ -45,8 +51,11 @@ export default function HomePage() {
     });
 
     return () => unsub();
-  }, [posts]);
+  }, []); // ← posts を外す
 
+  // -------------------------------
+  // スクロール方向で検索アイコンの表示/非表示
+  // -------------------------------
   useEffect(() => {
     const onScroll = () => {
       const current = window.scrollY;
@@ -90,11 +99,11 @@ export default function HomePage() {
       <button
         onClick={() => setSearchOpen(!searchOpen)}
         className={`
-    fixed top-4 right-4 z-40
-    text-[#1A2A4F] opacity-70 hover:opacity-100
-    transition-all duration-150
-    ${showSearchIcon ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2"}
-  `}
+          fixed top-4 right-4 z-40
+          text-[#1A2A4F] opacity-70 hover:opacity-100
+          transition-all duration-150
+          ${showSearchIcon ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2"}
+        `}
       >
         🔍
       </button>

@@ -1,0 +1,36 @@
+"use client";
+
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+
+export default function Home() {
+  const login = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      alert("ログイン成功！");
+    } catch (error) {
+      console.error(error);
+      alert("ログイン失敗…");
+    }
+  };
+
+  return (
+    <div style={{ padding: 40 }}>
+      <button
+        onClick={login}
+        style={{
+          padding: "12px 20px",
+          background: "#4285F4",
+          color: "white",
+          borderRadius: 6,
+          border: "none",
+          cursor: "pointer",
+        }}
+      >
+        Googleでログイン
+      </button>
+    </div>
+  );
+}
+

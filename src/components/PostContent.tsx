@@ -14,11 +14,11 @@ import { useRouter } from "next/navigation";
 export default function PostContent({
   postId,
   post,
-  onDeleted, // ← 追加
+  onDeleted,
 }: {
   postId: string;
   post: any;
-  onDeleted?: () => void; // ← 追加
+  onDeleted?: () => void;
 }) {
   const router = useRouter();
   const [likeAnim, setLikeAnim] = useState(false);
@@ -50,22 +50,18 @@ export default function PostContent({
 
     await deleteDoc(doc(db, "posts", postId));
 
-    // 🔥 削除後の遷移（PostDetailClient から渡される）
     if (onDeleted) {
-      onDeleted(); // ← ここで router.push + refresh が呼ばれる
+      onDeleted();
     } else {
-      // 念のためのフォールバック
       router.push("/home");
-      router.refresh(); // ← これが重要
+      setTimeout(() => router.refresh(), 50);
     }
   };
 
   return (
-    <div className="mb-8">
+    <div className="mb-8 text-[#1A2A4F] [color:#1A2A4F] [-webkit-text-fill-color:#1A2A4F]">
       {post.placeName && (
-        <h2 className="text-2xl font-bold mb-3 text-[#1A2A4F]">
-          {post.placeName}
-        </h2>
+        <h2 className="text-2xl font-bold mb-3">{post.placeName}</h2>
       )}
 
       <div className="flex items-center gap-3 mb-4">
@@ -74,12 +70,12 @@ export default function PostContent({
           className="w-12 h-12 rounded-full object-cover"
         />
         <div>
-          <div className="font-semibold text-[#1A2A4F]">{post.userName}</div>
-          <div className="text-sm text-gray-700">{created}</div>
+          <div className="font-semibold">{post.userName}</div>
+          <div className="text-sm opacity-80">{created}</div>
         </div>
       </div>
 
-      <p className="text-[#1A2A4F] opacity-90 leading-relaxed mb-4 whitespace-pre-line">
+      <p className="opacity-90 leading-relaxed mb-4 whitespace-pre-line">
         {post.text}
       </p>
 
@@ -99,6 +95,7 @@ export default function PostContent({
           className={`
             text-2xl transition-transform
             ${likeAnim ? "scale-125" : "scale-100"}
+            text-[#E63946] [color:#E63946] [-webkit-text-fill-color:#E63946]
           `}
         >
           ❤️ {post.likes?.length || 0}

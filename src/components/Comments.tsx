@@ -28,7 +28,6 @@ export default function Comments({
   const [likeAnimId, setLikeAnimId] = useState<string | null>(null);
   const [user, setUser] = useState<any | null>(null);
 
-  // 🔐 Auth 状態取得
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((u) => {
       setUser(u);
@@ -74,11 +73,11 @@ export default function Comments({
   };
 
   return (
-    <div className="flex flex-col gap-5 mt-6">
-      <h3 className="font-bold text-[#1A2A4F]">コメント</h3>
+    <div className="flex flex-col gap-5 mt-6 text-[#1A2A4F] [color:#1A2A4F] [-webkit-text-fill-color:#1A2A4F]">
+      <h3 className="font-bold">コメント</h3>
 
       {comments.length === 0 && (
-        <p className="text-[#1A2A4F] opacity-70">まだコメントはありません。</p>
+        <p className="opacity-70">まだコメントはありません。</p>
       )}
 
       {comments.map((c) => {
@@ -104,10 +103,8 @@ export default function Comments({
             />
 
             <div className="flex-1 flex flex-col">
-              <p className="font-semibold text-[#1A2A4F]">{c.userName}</p>
-              <p className="text-sm text-[#1A2A4F] opacity-90 whitespace-pre-line">
-                {c.text}
-              </p>
+              <p className="font-semibold">{c.userName}</p>
+              <p className="text-sm opacity-90 whitespace-pre-line">{c.text}</p>
               <p className="text-xs text-gray-600 mt-1">{created}</p>
 
               <div className="flex items-center gap-3 mt-2">
@@ -116,6 +113,7 @@ export default function Comments({
                   className={`
                     text-lg transition-transform
                     ${likeAnimId === c.id ? "scale-125" : "scale-100"}
+                    text-[#E63946] [color:#E63946] [-webkit-text-fill-color:#E63946]
                   `}
                 >
                   ❤️ {c.likes?.length || 0}
@@ -135,10 +133,9 @@ export default function Comments({
         );
       })}
 
-      {/* 🔐 未ログイン時の導線 */}
       {!user && (
         <div className="text-center mt-4">
-          <p className="text-[#1A2A4F] opacity-80 mb-3">
+          <p className="opacity-80 mb-3">
             コメントするにはログインが必要です。
           </p>
           <Link href="/login">
@@ -149,13 +146,17 @@ export default function Comments({
         </div>
       )}
 
-      {/* 🔓 ログイン済み → コメント入力欄 */}
       {user && (
         <div className="flex gap-2 mt-2">
           <input
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
-            className="border p-2 flex-1 rounded"
+            className="
+              border p-2 flex-1 rounded
+              text-[#1A2A4F] [color:#1A2A4F] [-webkit-text-fill-color:#1A2A4F]
+              placeholder-[#1A2A4F]/40
+              appearance-none
+            "
             placeholder="コメントを入力..."
           />
           <button

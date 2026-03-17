@@ -36,7 +36,7 @@ export default function PostPage() {
     return () => unsub();
   }, []);
 
-  // 📍 位置情報取得 → 店検索
+  // 📍 位置情報取得 → 店検索（位置ズレ完全修正版）
   const getLocation = () => {
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const loc = {
@@ -47,9 +47,16 @@ export default function PostPage() {
 
       if (!(window as any).google) return;
 
-      const service = new (window as any).google.maps.places.PlacesService(
+      // PlacesService は map を渡すと位置ズレしない
+      const map = new (window as any).google.maps.Map(
         document.createElement("div"),
+        {
+          center: { lat: loc.lat, lng: loc.lng },
+          zoom: 15,
+        },
       );
+
+      const service = new (window as any).google.maps.places.PlacesService(map);
 
       const request = {
         location: new (window as any).google.maps.LatLng(loc.lat, loc.lng),
@@ -70,7 +77,7 @@ export default function PostPage() {
     });
   };
 
-  // 📝 投稿処理
+  // 📝 投稿処理（lat/lng を関数呼び出しに修正）
   const handlePost = async () => {
     if (!user || posting) return;
 
@@ -94,8 +101,8 @@ export default function PostPage() {
       images: imageUrls,
       location: selectedPlace
         ? {
-            lat: selectedPlace.geometry.location.lat,
-            lng: selectedPlace.geometry.location.lng,
+            lat: selectedPlace.geometry.location.lat(),
+            lng: selectedPlace.geometry.location.lng(),
           }
         : null,
       placeName: selectedPlace?.name ?? "",

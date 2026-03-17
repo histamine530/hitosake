@@ -105,7 +105,8 @@ export default function HomeClient() {
           <p>{post.text}</p>
 
           {/* 画像（複数対応） */}
-          {post.images?.length > 0 &&
+          {Array.isArray(post.images) &&
+            post.images.length > 0 &&
             post.images.map((url, i) => (
               <img
                 key={i}

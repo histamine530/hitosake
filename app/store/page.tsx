@@ -4,13 +4,23 @@ import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, doc, onSnapshot } from "firebase/firestore";
 
+// 店舗データの型
+type Store = {
+  id: string;
+  name?: string;
+  category?: string;
+  prefecture?: string;
+  status?: string;
+  updatedAt?: any; // Firestore Timestamp
+};
+
 export default function StoreList() {
-  const [stores, setStores] = useState([]);
+  const [stores, setStores] = useState<Store[]>([]);
 
   useEffect(() => {
     const fetchStores = async () => {
       const snap = await getDocs(collection(db, "stores"));
-      const storeList = snap.docs.map((d) => ({
+      const storeList: Store[] = snap.docs.map((d) => ({
         id: d.id,
         ...d.data(),
       }));
@@ -21,6 +31,7 @@ export default function StoreList() {
 
         onSnapshot(statusRef, (statusSnap) => {
           const statusData = statusSnap.data();
+
           setStores((prev) =>
             prev.map((s) =>
               s.id === store.id

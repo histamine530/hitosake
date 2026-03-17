@@ -36,7 +36,7 @@ export default function PostPage() {
     return () => unsub();
   }, []);
 
-  // 📍 位置情報取得 → textSearch で店検索（安定版）
+  // 📍 位置情報取得 → textSearch（複数カテゴリ）＋距離フィルタリング
   const getLocation = () => {
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const loc = {
@@ -47,33 +47,93 @@ export default function PostPage() {
 
       if (!(window as any).google) return;
 
-      // textSearch は map を渡すと安定する
       const map = new (window as any).google.maps.Map(
         document.createElement("div"),
         {
-          center: { lat: loc.lat, lng: loc.lng },
+          center: loc,
           zoom: 15,
         },
       );
 
       const service = new (window as any).google.maps.places.PlacesService(map);
 
-      const request = {
-        query: "居酒屋 OR バー OR 飲み屋 OR 酒場 OR レストラン OR カフェ",
-        location: new (window as any).google.maps.LatLng(loc.lat, loc.lng),
-        radius: 500,
+      // 🔍 飲食店カテゴリ（複数検索）
+      const queries = [
+        "居酒屋",
+        "バー",
+        "飲み屋",
+        "酒場",
+        "レストラン",
+        "カフェ",
+        "食堂",
+        "定食",
+        "ラーメン",
+        "焼肉",
+        "寿司",
+        "蕎麦",
+        "うどん",
+      ];
+
+      const allResults: any[] = [];
+
+      // 距離計算関数
+      const getDistance = (lat1, lng1, lat2, lng2) => {
+        const R = 6371e3;
+        const toRad = (x) => (x * Math.PI) / 180;
+
+        const φ1 = toRad(lat1);
+        const φ2 = toRad(lat2);
+        const Δφ = toRad(lat2 - lat1);
+        const Δλ = toRad(lng2 - lng1);
+
+        const a =
+          Math.sin(Δφ / 2) ** 2 +
+          Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return R * c;
       };
 
-      service.textSearch(request, (results: any, status: any) => {
-        if (status !== "OK" || !results || results.length === 0) {
-          setPlaces([]);
-          setPlaceError("近くにお店が見つかりませんでした");
-          return;
-        }
+      // 🔄 複数検索を順番に実行
+      for (const q of queries) {
+        const request = {
+          query: q,
+          location: new (window as any).google.maps.LatLng(loc.lat, loc.lng),
+          radius: 500,
+        };
 
-        setPlaces(results);
-        setPlaceError("");
+        await new Promise<void>((resolve) => {
+          service.textSearch(request, (results: any, status: any) => {
+            if (status === "OK" && results) {
+              allResults.push(...results);
+            }
+            resolve();
+          });
+        });
+      }
+
+      // 🔁 重複削除（place_id 基準）
+      const unique = Array.from(
+        new Map(allResults.map((p) => [p.place_id, p])).values(),
+      );
+
+      // 📏 500m以内だけ残す
+      const filtered = unique.filter((p: any) => {
+        const lat = p.geometry.location.lat();
+        const lng = p.geometry.location.lng();
+        const d = getDistance(loc.lat, loc.lng, lat, lng);
+        return d <= 500;
       });
+
+      if (filtered.length === 0) {
+        setPlaces([]);
+        setPlaceError("近くにお店が見つかりませんでした");
+        return;
+      }
+
+      setPlaces(filtered);
+      setPlaceError("");
     });
   };
 

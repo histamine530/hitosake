@@ -45,19 +45,28 @@ export default function PostPage() {
       };
       setLocation(loc);
 
-      // 🔍 店検索
-      const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${loc.lat},${loc.lng}&radius=500&keyword=居酒屋|バー|飲み屋|酒場|レストラン|カフェ&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
+      if (!(window as any).google) return;
 
-      const res = await fetch(url);
-      const data = await res.json();
+      const service = new (window as any).google.maps.places.PlacesService(
+        document.createElement("div"),
+      );
 
-      if (!data.results || data.results.length === 0) {
-        setPlaces([]);
-        setPlaceError("近くにお店が見つかりませんでした");
-      } else {
-        setPlaces(data.results);
+      const request = {
+        location: new (window as any).google.maps.LatLng(loc.lat, loc.lng),
+        radius: 500,
+        keyword: "居酒屋 バー 飲み屋 酒場 レストラン カフェ",
+      };
+
+      service.nearbySearch(request, (results: any, status: any) => {
+        if (status !== "OK" || !results || results.length === 0) {
+          setPlaces([]);
+          setPlaceError("近くにお店が見つかりませんでした");
+          return;
+        }
+
+        setPlaces(results);
         setPlaceError("");
-      }
+      });
     });
   };
 

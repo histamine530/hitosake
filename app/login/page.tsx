@@ -3,8 +3,12 @@ export const dynamic = "force-dynamic";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInAnonymously,
+} from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useState } from "react";
 
 export default function LoginPage() {
@@ -13,6 +17,7 @@ export default function LoginPage() {
   const redirect = params.get("redirect") || "/";
   const [loading, setLoading] = useState(false);
 
+  // Google ログイン
   const handleGoogleLogin = async () => {
     if (!auth) return;
 
@@ -36,6 +41,34 @@ export default function LoginPage() {
     }
   };
 
+  // 匿名ログイン
+  const handleAnonymousLogin = async () => {
+    try {
+      setLoading(true);
+
+      const result = await signInAnonymously(auth);
+      const user = result.user;
+
+      const snap = await getDoc(doc(db, "users", user.uid));
+
+      // 初回匿名ユーザーは Firestore に最低限のデータを作る
+      if (!snap.exists()) {
+        await setDoc(doc(db, "users", user.uid), {
+          name: "",
+          icon: "",
+          createdAt: Date.now(),
+          isAnonymous: true,
+        });
+        router.push("/setup");
+      } else {
+        router.push(redirect);
+      }
+    } catch (error) {
+      console.error("匿名ログイン失敗:", error);
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen px-6">
       <h1 className="text-2xl font-semibold text-[#1A2A4F] mb-4">
@@ -46,12 +79,22 @@ export default function LoginPage() {
         その時の気持ちを、そっと残す場所です。
       </p>
 
+      {/* Google ログイン */}
       <button
         onClick={handleGoogleLogin}
         disabled={loading}
-        className="w-4/5 bg-white text-[#1A2A4F] py-3 rounded-xl text-lg border shadow-sm"
+        className="w-4/5 bg-white text-[#1A2A4F] py-3 rounded-xl text-lg border shadow-sm mb-4"
       >
         {loading ? "読み込み中..." : "Google でログイン"}
+      </button>
+
+      {/* 匿名ログイン */}
+      <button
+        onClick={handleAnonymousLogin}
+        disabled={loading}
+        className="w-4/5 bg-[#1A2A4F] text-white py-3 rounded-xl text-lg"
+      >
+        {loading ? "読み込み中..." : "匿名ではじめる"}
       </button>
 
       <p className="mt-6 text-sm text-[#1A2A4F] opacity-70">

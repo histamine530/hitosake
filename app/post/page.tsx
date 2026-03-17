@@ -36,7 +36,7 @@ export default function PostPage() {
     return () => unsub();
   }, []);
 
-  // 📍 位置情報取得 → 店検索（位置ズレ完全修正版）
+  // 📍 位置情報取得 → textSearch で店検索（安定版）
   const getLocation = () => {
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const loc = {
@@ -47,7 +47,7 @@ export default function PostPage() {
 
       if (!(window as any).google) return;
 
-      // PlacesService は map を渡すと位置ズレしない
+      // textSearch は map を渡すと安定する
       const map = new (window as any).google.maps.Map(
         document.createElement("div"),
         {
@@ -59,12 +59,12 @@ export default function PostPage() {
       const service = new (window as any).google.maps.places.PlacesService(map);
 
       const request = {
+        query: "居酒屋 OR バー OR 飲み屋 OR 酒場 OR レストラン OR カフェ",
         location: new (window as any).google.maps.LatLng(loc.lat, loc.lng),
         radius: 500,
-        keyword: "居酒屋 バー 飲み屋 酒場 レストラン カフェ",
       };
 
-      service.nearbySearch(request, (results: any, status: any) => {
+      service.textSearch(request, (results: any, status: any) => {
         if (status !== "OK" || !results || results.length === 0) {
           setPlaces([]);
           setPlaceError("近くにお店が見つかりませんでした");

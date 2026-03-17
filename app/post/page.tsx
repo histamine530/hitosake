@@ -18,9 +18,13 @@ export default function PostPage() {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [location, setLocation] = useState<any>(null);
+  const [places, setPlaces] = useState<any[]>([]);
+  const [placeError, setPlaceError] = useState("");
+  const [selectedPlace, setSelectedPlace] = useState<any>(null);
+
   const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [posting, setPosting] = useState(false); // ← 投稿中フラグ
+  const [posting, setPosting] = useState(false);
 
   // 🔐 Auth 状態取得
   useEffect(() => {
@@ -32,10 +36,36 @@ export default function PostPage() {
     return () => unsub();
   }, []);
 
+  // 📍 位置情報取得 → 店検索
+  const getLocation = () => {
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const loc = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+      };
+      setLocation(loc);
+
+      // 🔍 店検索
+      const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${loc.lat},${loc.lng}&radius=500&keyword=居酒屋|バー|飲み屋|酒場|レストラン|カフェ&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
+
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (!data.results || data.results.length === 0) {
+        setPlaces([]);
+        setPlaceError("近くにお店が見つかりませんでした");
+      } else {
+        setPlaces(data.results);
+        setPlaceError("");
+      }
+    });
+  };
+
+  // 📝 投稿処理
   const handlePost = async () => {
     if (!user || posting) return;
 
-    setPosting(true); // ← 投稿中に切り替え
+    setPosting(true);
 
     const userRef = doc(db, "users", user.uid);
     const snap = await getDoc(userRef);
@@ -53,26 +83,23 @@ export default function PostPage() {
     await addDoc(collection(db, "posts"), {
       text,
       images: imageUrls,
-      location,
+      location: selectedPlace
+        ? {
+            lat: selectedPlace.geometry.location.lat,
+            lng: selectedPlace.geometry.location.lng,
+          }
+        : null,
+      placeName: selectedPlace?.name ?? "",
+      placeId: selectedPlace?.place_id ?? "",
       userName: profile?.userName ?? "",
       userPhoto: profile?.userPhoto ?? "",
       userId: user.uid,
       createdAt: serverTimestamp(),
     });
 
-    // 🎉 投稿完了 → 入力欄クリア
     setText("");
     setFiles([]);
     setPosting(false);
-  };
-
-  const getLocation = () => {
-    navigator.geolocation.getCurrentPosition((pos) => {
-      setLocation({
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-      });
-    });
   };
 
   // 🔄 読み込み中
@@ -85,7 +112,7 @@ export default function PostPage() {
     );
   }
 
-  // 🔐 未ログイン時の UI
+  // 🔐 未ログイン
   if (!user) {
     return (
       <div className="p-5 text-center">
@@ -105,7 +132,7 @@ export default function PostPage() {
     );
   }
 
-  // 🔓 ログイン済み → 投稿フォーム
+  // 🔓 投稿フォーム
   return (
     <div className="p-5 bg-[#FAF7F2] min-h-screen">
       <h2 className="text-xl font-bold mb-5 text-[#1A2A4F]">
@@ -127,7 +154,7 @@ export default function PostPage() {
         />
       </div>
 
-      {/* メモ（iPhoneで薄くならないように修正済み） */}
+      {/* メモ */}
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -148,10 +175,39 @@ export default function PostPage() {
         className="w-full py-3 rounded-lg bg-[#1A2A4F] text-white font-semibold
                    hover:bg-[#16213d] transition mb-4"
       >
-        位置情報を取得
+        近くのお店を探す
       </button>
 
-      {/* 投稿ボタン（ローディング対応） */}
+      {/* 店が見つからなかった時 */}
+      {placeError && (
+        <p className="text-center text-red-600 font-semibold mb-4">
+          {placeError}
+        </p>
+      )}
+
+      {/* 店リスト */}
+      {places.length > 0 && (
+        <div className="mb-4">
+          <h3 className="font-bold text-[#1A2A4F] mb-2">お店を選択</h3>
+          <div className="space-y-2">
+            {places.map((p) => (
+              <button
+                key={p.place_id}
+                onClick={() => setSelectedPlace(p)}
+                className={`w-full text-left p-3 rounded-lg border ${
+                  selectedPlace?.place_id === p.place_id
+                    ? "bg-[#1A2A4F] text-white"
+                    : "bg-white text-[#1A2A4F]"
+                }`}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 投稿ボタン */}
       <button
         onClick={handlePost}
         disabled={posting}

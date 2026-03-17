@@ -17,10 +17,10 @@ import type { User } from "firebase/auth";
 type Post = {
   docId: string;
   text?: string;
-  photoURL?: string;
+  images?: string[];
   location?: { lat: number; lng: number };
   createdAt?: any;
-  uid?: string;
+  userId?: string;
   user: any | null;
 };
 
@@ -42,9 +42,9 @@ export default function HomeClient() {
 
       for (const docSnap of snap.docs) {
         const post = docSnap.data();
-        if (!post.uid) continue;
+        if (!post.userId) continue;
 
-        const userRef = doc(db, "users", post.uid);
+        const userRef = doc(db, "users", post.userId);
         const userSnap = await getDoc(userRef);
 
         list.push({
@@ -78,6 +78,7 @@ export default function HomeClient() {
             borderRadius: 8,
           }}
         >
+          {/* 投稿者情報 */}
           {post.user && (
             <div
               style={{
@@ -87,7 +88,7 @@ export default function HomeClient() {
               }}
             >
               <img
-                src={post.user.photoURL}
+                src={post.user.userPhoto || "/default.png"}
                 alt="icon"
                 style={{
                   width: 40,
@@ -96,29 +97,35 @@ export default function HomeClient() {
                   marginRight: 10,
                 }}
               />
-              <strong>{post.user.name}</strong>
+              <strong>{post.user.userName}</strong>
             </div>
           )}
 
+          {/* テキスト */}
           <p>{post.text}</p>
 
-          {post.photoURL && (
-            <img
-              src={post.photoURL}
-              alt="photo"
-              style={{
-                width: "100%",
-                maxWidth: 400,
-                borderRadius: 8,
-                marginTop: 10,
-              }}
-            />
-          )}
+          {/* 画像（複数対応） */}
+          {post.images?.length > 0 &&
+            post.images.map((url, i) => (
+              <img
+                key={i}
+                src={url}
+                alt="photo"
+                style={{
+                  width: "100%",
+                  maxWidth: 400,
+                  borderRadius: 8,
+                  marginTop: 10,
+                }}
+              />
+            ))}
 
+          {/* 地図 */}
           {post.location && (
             <Map lat={post.location.lat} lng={post.location.lng} />
           )}
 
+          {/* 投稿日時 */}
           <p style={{ fontSize: 12, color: "#666", marginTop: 10 }}>
             {post.createdAt?.toDate
               ? post.createdAt.toDate().toLocaleString()

@@ -8,21 +8,23 @@ import {
   signInWithPopup,
   signInAnonymously,
 } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { useState } from "react";
 
 export default function LoginPage() {
   const router = useRouter();
   const params = useSearchParams();
   const redirect = params.get("redirect") || "/";
-  const [loading, setLoading] = useState(false);
+
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
+  const [loadingAnon, setLoadingAnon] = useState(false);
 
   // Google ログイン
   const handleGoogleLogin = async () => {
     if (!auth) return;
 
     try {
-      setLoading(true);
+      setLoadingGoogle(true);
 
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
@@ -37,35 +39,28 @@ export default function LoginPage() {
       }
     } catch (error) {
       console.error("Google ログイン失敗:", error);
-      setLoading(false);
+      setLoadingGoogle(false);
     }
   };
 
   // 匿名ログイン
   const handleAnonymousLogin = async () => {
     try {
-      setLoading(true);
+      setLoadingAnon(true);
 
       const result = await signInAnonymously(auth);
       const user = result.user;
 
       const snap = await getDoc(doc(db, "users", user.uid));
 
-      // 初回匿名ユーザーは Firestore に最低限のデータを作る
       if (!snap.exists()) {
-        await setDoc(doc(db, "users", user.uid), {
-          name: "",
-          icon: "",
-          createdAt: Date.now(),
-          isAnonymous: true,
-        });
         router.push("/setup");
       } else {
         router.push(redirect);
       }
     } catch (error) {
       console.error("匿名ログイン失敗:", error);
-      setLoading(false);
+      setLoadingAnon(false);
     }
   };
 
@@ -82,19 +77,19 @@ export default function LoginPage() {
       {/* Google ログイン */}
       <button
         onClick={handleGoogleLogin}
-        disabled={loading}
+        disabled={loadingGoogle || loadingAnon}
         className="w-4/5 bg-white text-[#1A2A4F] py-3 rounded-xl text-lg border shadow-sm mb-4"
       >
-        {loading ? "読み込み中..." : "Google でログイン"}
+        {loadingGoogle ? "読み込み中..." : "Google でログイン"}
       </button>
 
       {/* 匿名ログイン */}
       <button
         onClick={handleAnonymousLogin}
-        disabled={loading}
+        disabled={loadingGoogle || loadingAnon}
         className="w-4/5 bg-[#1A2A4F] text-white py-3 rounded-xl text-lg"
       >
-        {loading ? "読み込み中..." : "匿名ではじめる"}
+        {loadingAnon ? "読み込み中..." : "匿名ではじめる"}
       </button>
 
       <p className="mt-6 text-sm text-[#1A2A4F] opacity-70">

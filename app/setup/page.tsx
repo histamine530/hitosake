@@ -11,7 +11,7 @@ export default function SetupPage() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // すでに設定済みなら / に飛ばす
+  // Firestore に userName が既にあるなら / に飛ばす
   useEffect(() => {
     const checkUser = async () => {
       const user = auth.currentUser;
@@ -20,7 +20,8 @@ export default function SetupPage() {
       const ref = doc(db, "users", user.uid);
       const snap = await getDoc(ref);
 
-      if (snap.exists()) {
+      // Firestore にデータがあり、userName が設定済みならホームへ
+      if (snap.exists() && snap.data()?.userName) {
         router.push("/");
       }
     };
@@ -35,14 +36,17 @@ export default function SetupPage() {
     try {
       setLoading(true);
 
-      // Firestore にユーザー情報を保存
-      await setDoc(doc(db, "users", user.uid), {
-        userName: name.trim(),
-        userPhoto: "",
-        createdAt: new Date(),
-      });
+      // Firestore にユーザー情報を保存（匿名でもGoogleでも同じ）
+      await setDoc(
+        doc(db, "users", user.uid),
+        {
+          userName: name.trim(),
+          userPhoto: "",
+          createdAt: new Date(),
+        },
+        { merge: true }, // ← 既存データがあっても上書きしない
+      );
 
-      // 保存後はホームへ
       router.push("/");
     } catch (error) {
       console.error("保存失敗:", error);

@@ -1,8 +1,9 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-// ←←← ここに追加（最重要）
-// 距離計算関数（グローバルに置く）
+// -----------------------------
+// 距離計算（既存）
+// -----------------------------
 const getDistance = (
   lat1: number,
   lng1: number,
@@ -24,9 +25,8 @@ const getDistance = (
 
   return R * c;
 };
-// ←←← ここまで追加
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { db, storage } from "@/lib/firebase";
 import {
   addDoc,
@@ -43,6 +43,7 @@ export default function PostPage() {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [location, setLocation] = useState<any>(null);
+
   const [places, setPlaces] = useState<any[]>([]);
   const [placeError, setPlaceError] = useState("");
   const [selectedPlace, setSelectedPlace] = useState<any>(null);
@@ -51,7 +52,22 @@ export default function PostPage() {
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
 
-  // 🔐 Auth 状態取得
+  // -----------------------------
+  // 🔍 店名検索
+  // -----------------------------
+  const [searchText, setSearchText] = useState("");
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+
+  // -----------------------------
+  // 🗺️ ミニマップ
+  // -----------------------------
+  const mapRef = useRef<HTMLDivElement | null>(null);
+  const [map, setMap] = useState<any>(null);
+  const [mapMarkers, setMapMarkers] = useState<any[]>([]);
+
+  // -----------------------------
+  // 🔐 Auth
+  // -----------------------------
   useEffect(() => {
     const auth = getAuth();
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -61,8 +77,94 @@ export default function PostPage() {
     return () => unsub();
   }, []);
 
-  // 📍 位置情報取得 → textSearch（複数カテゴリ）＋距離フィルタリング
-  const getLocation = () => {
+  // -----------------------------
+  // 📍 現在地取得 → ミニマップ生成
+  // -----------------------------
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const loc = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+      };
+      setLocation(loc);
+
+      if (!(window as any).google || !mapRef.current) return;
+
+      const m = new (window as any).google.maps.Map(mapRef.current, {
+        center: loc,
+        zoom: 15,
+        disableDefaultUI: true,
+      });
+
+      setMap(m);
+    });
+  }, []);
+
+  // -----------------------------
+  // 🔍 店名検索（サジェスト）
+  // -----------------------------
+  useEffect(() => {
+    if (!searchText) {
+      setSuggestions([]);
+      return;
+    }
+    if (!(window as any).google || !location) return;
+
+    const service = new (window as any).google.maps.places.PlacesService(
+      document.createElement("div"),
+    );
+
+    const t = setTimeout(() => {
+      service.textSearch(
+        {
+          query: searchText,
+          location: new (window as any).google.maps.LatLng(
+            location.lat,
+            location.lng,
+          ),
+          radius: 1000,
+        },
+        (results: any, status: any) => {
+          if (status === "OK") {
+            setSuggestions(results);
+          }
+        },
+      );
+    }, 300);
+
+    return () => clearTimeout(t);
+  }, [searchText, location]);
+
+  // -----------------------------
+  // 🗺️ ミニマップにピン表示
+  // -----------------------------
+  useEffect(() => {
+    if (!map || places.length === 0) return;
+
+    mapMarkers.forEach((m) => m.setMap(null));
+
+    const newMarkers: any[] = [];
+
+    places.forEach((p) => {
+      const marker = new (window as any).google.maps.Marker({
+        map,
+        position: p.geometry.location,
+      });
+
+      marker.addListener("click", () => {
+        setSelectedPlace(p);
+      });
+
+      newMarkers.push(marker);
+    });
+
+    setMapMarkers(newMarkers);
+  }, [map, places]);
+
+  // -----------------------------
+  // 📍 近くのお店を探す（既存）
+  // -----------------------------
+  const getLocationAndPlaces = () => {
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const loc = {
         lat: pos.coords.latitude,
@@ -72,7 +174,7 @@ export default function PostPage() {
 
       if (!(window as any).google) return;
 
-      const map = new (window as any).google.maps.Map(
+      const mapObj = new (window as any).google.maps.Map(
         document.createElement("div"),
         {
           center: loc,
@@ -80,7 +182,9 @@ export default function PostPage() {
         },
       );
 
-      const service = new (window as any).google.maps.places.PlacesService(map);
+      const service = new (window as any).google.maps.places.PlacesService(
+        mapObj,
+      );
 
       const queries = [
         "居酒屋",
@@ -101,19 +205,23 @@ export default function PostPage() {
       const allResults: any[] = [];
 
       for (const q of queries) {
-        const request = {
-          query: q,
-          location: new (window as any).google.maps.LatLng(loc.lat, loc.lng),
-          radius: 500,
-        };
-
         await new Promise<void>((resolve) => {
-          service.textSearch(request, (results: any, status: any) => {
-            if (status === "OK" && results) {
-              allResults.push(...results);
-            }
-            resolve();
-          });
+          service.textSearch(
+            {
+              query: q,
+              location: new (window as any).google.maps.LatLng(
+                loc.lat,
+                loc.lng,
+              ),
+              radius: 500,
+            },
+            (results: any, status: any) => {
+              if (status === "OK" && results) {
+                allResults.push(...results);
+              }
+              resolve();
+            },
+          );
         });
       }
 
@@ -139,7 +247,9 @@ export default function PostPage() {
     });
   };
 
-  // 📝 投稿処理（lat/lng を関数呼び出しに修正）
+  // -----------------------------
+  // 📝 投稿処理（既存）
+  // -----------------------------
   const handlePost = async () => {
     if (!user || posting) return;
 
@@ -180,7 +290,9 @@ export default function PostPage() {
     setPosting(false);
   };
 
-  // 🔄 読み込み中
+  // -----------------------------
+  // UI
+  // -----------------------------
   if (loading) {
     return (
       <div className="p-5">
@@ -190,7 +302,6 @@ export default function PostPage() {
     );
   }
 
-  // 🔐 未ログイン
   if (!user) {
     return (
       <div className="p-5 text-center">
@@ -210,7 +321,6 @@ export default function PostPage() {
     );
   }
 
-  // 🔓 投稿フォーム
   return (
     <div className="p-5 bg-[#FAF7F2] min-h-screen">
       <h2 className="text-xl font-bold mb-5 text-[#1A2A4F]">
@@ -247,9 +357,49 @@ export default function PostPage() {
         rows={4}
       />
 
-      {/* 位置情報 */}
+      {/* 🔍 店名検索バー */}
+      <input
+        value={searchText}
+        onChange={(e) => setSearchText(e.target.value)}
+        placeholder="店名で検索…"
+        className="w-full p-3 rounded-lg shadow bg-white text-[#1A2A4F] mb-2"
+      />
+
+      {/* 🔍 サジェスト */}
+      {suggestions.length > 0 && (
+        <div className="bg-white rounded-lg shadow mb-4">
+          {suggestions.map((s) => (
+            <div
+              key={s.place_id}
+              onClick={() => {
+                setSelectedPlace(s);
+                setSuggestions([]);
+                setSearchText(s.name);
+              }}
+              className="p-3 border-b last:border-none cursor-pointer hover:bg-gray-100"
+            >
+              {s.name}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 🗺️ カード風ミニマップ */}
+      <div
+        ref={mapRef}
+        className="w-full h-56 rounded-xl shadow mb-4 bg-gray-200"
+      />
+
+      {/* 選択された店 */}
+      {selectedPlace && (
+        <div className="p-3 bg-white rounded-lg shadow text-[#1A2A4F] mb-4">
+          選択された店：{selectedPlace.name}
+        </div>
+      )}
+
+      {/* 近くのお店を探す */}
       <button
-        onClick={getLocation}
+        onClick={getLocationAndPlaces}
         className="w-full py-3 rounded-lg bg-[#1A2A4F] text-white font-semibold
                    hover:bg-[#16213d] transition mb-4"
       >
@@ -263,7 +413,7 @@ export default function PostPage() {
         </p>
       )}
 
-      {/* 店リスト */}
+      {/* 店リスト（既存） */}
       {places.length > 0 && (
         <div className="mb-4">
           <h3 className="font-bold text-[#1A2A4F] mb-2">お店を選択</h3>

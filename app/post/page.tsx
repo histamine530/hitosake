@@ -26,6 +26,19 @@ const getDistance = (
   return R * c;
 };
 
+// -----------------------------
+// LatLng の取得を統一する関数
+// -----------------------------
+const getLatLng = (place: any) => {
+  const loc = place.geometry?.location;
+  if (!loc) return null;
+
+  const lat = typeof loc.lat === "function" ? loc.lat() : loc.lat;
+  const lng = typeof loc.lng === "function" ? loc.lng() : loc.lng;
+
+  return { lat, lng };
+};
+
 import { useState, useEffect, useRef } from "react";
 import { db, storage } from "@/lib/firebase";
 import {
@@ -67,6 +80,9 @@ export default function PostPage() {
   // 🔘 店一覧アコーディオン
   const [showPlaceList, setShowPlaceList] = useState(true);
 
+  // 🏷️ InfoWindow（店名ラベル）
+  const infoWindowRef = useRef<any>(null);
+
   // -----------------------------
   // 🔐 Auth
   // -----------------------------
@@ -80,7 +96,7 @@ export default function PostPage() {
   }, []);
 
   // -----------------------------
-  // 📍 現在地取得 → ミニマップ生成（UI 表示後）
+  // 📍 現在地取得 → map を先に作る
   // -----------------------------
   useEffect(() => {
     if (!placeUIVisible) return;
@@ -103,6 +119,46 @@ export default function PostPage() {
       setMap(m);
     });
   }, [placeUIVisible]);
+
+  // -----------------------------
+  // 🗺️ places が更新されたらピンを置く
+  // -----------------------------
+  useEffect(() => {
+    if (!map) return;
+
+    // 既存ピン削除
+    mapMarkers.forEach((m) => m.setMap(null));
+
+    const newMarkers: any[] = [];
+
+    places.forEach((p) => {
+      const ll = getLatLng(p);
+      if (!ll) return;
+
+      const marker = new (window as any).google.maps.Marker({
+        map,
+        position: ll,
+      });
+
+      // 店名ラベル
+      const info = new (window as any).google.maps.InfoWindow({
+        content: `<div style="font-size:14px;color:#1A2A4F;">${p.name}</div>`,
+      });
+
+      marker.addListener("click", () => {
+        infoWindowRef.current?.close();
+        info.open(map, marker);
+        infoWindowRef.current = info;
+
+        setSelectedPlace(p);
+        setShowPlaceList(false);
+      });
+
+      newMarkers.push(marker);
+    });
+
+    setMapMarkers(newMarkers);
+  }, [map, places]);
 
   // -----------------------------
   // 🔍 店名検索（サジェスト）
@@ -141,34 +197,7 @@ export default function PostPage() {
   }, [searchText, location, placeUIVisible]);
 
   // -----------------------------
-  // 🗺️ ミニマップにピン表示
-  // -----------------------------
-  useEffect(() => {
-    if (!map || places.length === 0) return;
-
-    mapMarkers.forEach((m) => m.setMap(null));
-
-    const newMarkers: any[] = [];
-
-    places.forEach((p) => {
-      const marker = new (window as any).google.maps.Marker({
-        map,
-        position: p.geometry.location,
-      });
-
-      marker.addListener("click", () => {
-        setSelectedPlace(p);
-        setShowPlaceList(false); // ← アコーディオン閉じる
-      });
-
-      newMarkers.push(marker);
-    });
-
-    setMapMarkers(newMarkers);
-  }, [map, places]);
-
-  // -----------------------------
-  // 📍 近くのお店を探す（既存）
+  // 📍 近くのお店を探す
   // -----------------------------
   const getLocationAndPlaces = () => {
     setPlaceUIVisible(true);
@@ -238,9 +267,9 @@ export default function PostPage() {
       );
 
       const filtered = unique.filter((p: any) => {
-        const lat = p.geometry.location.lat();
-        const lng = p.geometry.location.lng();
-        const d = getDistance(loc.lat, loc.lng, lat, lng);
+        const ll = getLatLng(p);
+        if (!ll) return false;
+        const d = getDistance(loc.lat, loc.lng, ll.lat, ll.lng);
         return d <= 500;
       });
 
@@ -252,8 +281,44 @@ export default function PostPage() {
 
       setPlaces(filtered);
       setPlaceError("");
-      setShowPlaceList(true); // ← 初回は開く
+      setShowPlaceList(true);
     });
+  };
+
+  // -----------------------------
+  // 🔍 サジェスト選択時の処理
+  // -----------------------------
+  const handleSelectSuggestion = (place: any) => {
+    setSelectedPlace(place);
+    setSuggestions([]);
+    setSearchText(place.name);
+    setShowPlaceList(false);
+
+    const ll = getLatLng(place);
+    if (ll && map) {
+      map.setCenter(ll);
+      map.setZoom(17);
+    }
+
+    // 既存ピン削除
+    mapMarkers.forEach((m) => m.setMap(null));
+
+    // 新しいピン
+    const marker = new (window as any).google.maps.Marker({
+      map,
+      position: ll,
+    });
+
+    // 店名ラベル
+    const info = new (window as any).google.maps.InfoWindow({
+      content: `<div style="font-size:14px;color:#1A2A4F;">${place.name}</div>`,
+    });
+
+    infoWindowRef.current?.close();
+    info.open(map, marker);
+    infoWindowRef.current = info;
+
+    setMapMarkers([marker]);
   };
 
   // -----------------------------
@@ -280,12 +345,7 @@ export default function PostPage() {
     await addDoc(collection(db, "posts"), {
       text,
       images: imageUrls,
-      location: selectedPlace
-        ? {
-            lat: selectedPlace.geometry.location.lat(),
-            lng: selectedPlace.geometry.location.lng(),
-          }
-        : null,
+      location: selectedPlace ? getLatLng(selectedPlace) : null,
       placeName: selectedPlace?.name ?? "",
       placeId: selectedPlace?.place_id ?? "",
       userName: profile?.userName ?? "",
@@ -306,7 +366,7 @@ export default function PostPage() {
     return (
       <div className="p-5">
         <h2 className="text-xl font-bold text-[#1A2A4F]">今日の一杯を投稿</h2>
-        <p className="text-[#1A2A4F] opacity-80">読み込み中…</p>
+        <p className="text-[#1A2A4F]">読み込み中…</p>
       </div>
     );
   }
@@ -317,9 +377,7 @@ export default function PostPage() {
         <h2 className="text-xl font-bold text-[#1A2A4F] mb-4">
           今日の一杯を投稿
         </h2>
-        <p className="text-[#1A2A4F] opacity-80 mb-6">
-          投稿するにはログインが必要です。
-        </p>
+        <p className="text-[#1A2A4F] mb-6">投稿するにはログインが必要です。</p>
 
         <Link href="/login">
           <button className="px-5 py-3 bg-[#1A2A4F] text-white rounded-xl shadow">
@@ -373,7 +431,7 @@ export default function PostPage() {
         近くのお店を探す
       </button>
 
-      {/* 🔽 ここから店選択 UI（ボタン押すまで非表示） */}
+      {/* 🔽 店選択 UI */}
       {placeUIVisible && (
         <>
           {/* 🔍 店名検索バー */}
@@ -390,12 +448,7 @@ export default function PostPage() {
               {suggestions.map((s) => (
                 <div
                   key={s.place_id}
-                  onClick={() => {
-                    setSelectedPlace(s);
-                    setSuggestions([]);
-                    setSearchText(s.name);
-                    setShowPlaceList(false); // ← アコーディオン閉じる
-                  }}
+                  onClick={() => handleSelectSuggestion(s)}
                   className="p-3 border-b last:border-none cursor-pointer hover:bg-gray-100 text-[#1A2A4F]"
                 >
                   {s.name}
@@ -434,7 +487,29 @@ export default function PostPage() {
                       key={p.place_id}
                       onClick={() => {
                         setSelectedPlace(p);
-                        setShowPlaceList(false); // ← 選択後閉じる
+                        setShowPlaceList(false);
+
+                        const ll = getLatLng(p);
+                        if (ll && map) {
+                          map.setCenter(ll);
+                          map.setZoom(17);
+                        }
+
+                        // ラベル表示
+                        infoWindowRef.current?.close();
+                        const info = new (window as any).google.maps.InfoWindow(
+                          {
+                            content: `<div style="font-size:14px;color:#1A2A4F;">${p.name}</div>`,
+                          },
+                        );
+                        info.open(
+                          map,
+                          mapMarkers.find((m) => {
+                            const pos = m.getPosition();
+                            return pos.lat() === ll.lat && pos.lng() === ll.lng;
+                          }),
+                        );
+                        infoWindowRef.current = info;
                       }}
                       className={`w-full text-left p-3 rounded-lg border ${
                         selectedPlace?.place_id === p.place_id

@@ -52,18 +52,17 @@ export default function PostPage() {
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
 
-  // -----------------------------
   // 🔍 店名検索
-  // -----------------------------
   const [searchText, setSearchText] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
 
-  // -----------------------------
   // 🗺️ ミニマップ
-  // -----------------------------
   const mapRef = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<any>(null);
   const [mapMarkers, setMapMarkers] = useState<any[]>([]);
+
+  // 🔘 店選択 UI の表示制御
+  const [placeUIVisible, setPlaceUIVisible] = useState(false);
 
   // -----------------------------
   // 🔐 Auth
@@ -78,9 +77,11 @@ export default function PostPage() {
   }, []);
 
   // -----------------------------
-  // 📍 現在地取得 → ミニマップ生成
+  // 📍 現在地取得 → ミニマップ生成（UI 表示後）
   // -----------------------------
   useEffect(() => {
+    if (!placeUIVisible) return;
+
     navigator.geolocation.getCurrentPosition((pos) => {
       const loc = {
         lat: pos.coords.latitude,
@@ -98,12 +99,13 @@ export default function PostPage() {
 
       setMap(m);
     });
-  }, []);
+  }, [placeUIVisible]);
 
   // -----------------------------
   // 🔍 店名検索（サジェスト）
   // -----------------------------
   useEffect(() => {
+    if (!placeUIVisible) return;
     if (!searchText) {
       setSuggestions([]);
       return;
@@ -133,7 +135,7 @@ export default function PostPage() {
     }, 300);
 
     return () => clearTimeout(t);
-  }, [searchText, location]);
+  }, [searchText, location, placeUIVisible]);
 
   // -----------------------------
   // 🗺️ ミニマップにピン表示
@@ -165,6 +167,8 @@ export default function PostPage() {
   // 📍 近くのお店を探す（既存）
   // -----------------------------
   const getLocationAndPlaces = () => {
+    setPlaceUIVisible(true);
+
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const loc = {
         lat: pos.coords.latitude,
@@ -349,53 +353,11 @@ export default function PostPage() {
         placeholder="今日の一杯のメモ"
         className="w-full p-3 rounded-lg border border-gray-300
                    bg-white text-[#1A2A4F]
-                   placeholder:text-gray-400
-                   focus:text-[#1A2A4F]
-                   focus:placeholder:text-gray-300
+                   placeholder:text-gray-500
                    focus:outline-none focus:ring-2 focus:ring-[#1A2A4F]
                    mb-4"
         rows={4}
       />
-
-      {/* 🔍 店名検索バー */}
-      <input
-        value={searchText}
-        onChange={(e) => setSearchText(e.target.value)}
-        placeholder="店名で検索…"
-        className="w-full p-3 rounded-lg shadow bg-white text-[#1A2A4F] mb-2"
-      />
-
-      {/* 🔍 サジェスト */}
-      {suggestions.length > 0 && (
-        <div className="bg-white rounded-lg shadow mb-4">
-          {suggestions.map((s) => (
-            <div
-              key={s.place_id}
-              onClick={() => {
-                setSelectedPlace(s);
-                setSuggestions([]);
-                setSearchText(s.name);
-              }}
-              className="p-3 border-b last:border-none cursor-pointer hover:bg-gray-100"
-            >
-              {s.name}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* 🗺️ カード風ミニマップ */}
-      <div
-        ref={mapRef}
-        className="w-full h-56 rounded-xl shadow mb-4 bg-gray-200"
-      />
-
-      {/* 選択された店 */}
-      {selectedPlace && (
-        <div className="p-3 bg-white rounded-lg shadow text-[#1A2A4F] mb-4">
-          選択された店：{selectedPlace.name}
-        </div>
-      )}
 
       {/* 近くのお店を探す */}
       <button
@@ -406,33 +368,78 @@ export default function PostPage() {
         近くのお店を探す
       </button>
 
-      {/* 店が見つからなかった時 */}
-      {placeError && (
-        <p className="text-center text-red-600 font-semibold mb-4">
-          {placeError}
-        </p>
-      )}
+      {/* 🔽 ここから店選択 UI（ボタン押すまで非表示） */}
+      {placeUIVisible && (
+        <>
+          {/* 🔍 店名検索バー */}
+          <input
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="店名で検索…"
+            className="w-full p-3 rounded-lg shadow bg-white text-[#1A2A4F] placeholder:text-gray-500 mb-2"
+          />
 
-      {/* 店リスト（既存） */}
-      {places.length > 0 && (
-        <div className="mb-4">
-          <h3 className="font-bold text-[#1A2A4F] mb-2">お店を選択</h3>
-          <div className="space-y-2">
-            {places.map((p) => (
-              <button
-                key={p.place_id}
-                onClick={() => setSelectedPlace(p)}
-                className={`w-full text-left p-3 rounded-lg border ${
-                  selectedPlace?.place_id === p.place_id
-                    ? "bg-[#1A2A4F] text-white"
-                    : "bg-white text-[#1A2A4F]"
-                }`}
-              >
-                {p.name}
-              </button>
-            ))}
-          </div>
-        </div>
+          {/* 🔍 サジェスト */}
+          {suggestions.length > 0 && (
+            <div className="bg-white rounded-lg shadow mb-4">
+              {suggestions.map((s) => (
+                <div
+                  key={s.place_id}
+                  onClick={() => {
+                    setSelectedPlace(s);
+                    setSuggestions([]);
+                    setSearchText(s.name);
+                  }}
+                  className="p-3 border-b last:border-none cursor-pointer hover:bg-gray-100"
+                >
+                  {s.name}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 🗺️ カード風ミニマップ */}
+          <div
+            ref={mapRef}
+            className="w-full h-56 rounded-xl shadow mb-4 bg-gray-200"
+          />
+
+          {/* 選択された店 */}
+          {selectedPlace && (
+            <div className="p-3 bg-white rounded-lg shadow text-[#1A2A4F] mb-4">
+              選択された店：{selectedPlace.name}
+            </div>
+          )}
+
+          {/* 店が見つからなかった時 */}
+          {placeError && (
+            <p className="text-center text-red-600 font-semibold mb-4">
+              {placeError}
+            </p>
+          )}
+
+          {/* 店リスト（既存） */}
+          {places.length > 0 && (
+            <div className="mb-4">
+              <h3 className="font-bold text-[#1A2A4F] mb-2">お店を選択</h3>
+              <div className="space-y-2">
+                {places.map((p) => (
+                  <button
+                    key={p.place_id}
+                    onClick={() => setSelectedPlace(p)}
+                    className={`w-full text-left p-3 rounded-lg border ${
+                      selectedPlace?.place_id === p.place_id
+                        ? "bg-[#1A2A4F] text-white"
+                        : "bg-white text-[#1A2A4F]"
+                    }`}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* 投稿ボタン */}

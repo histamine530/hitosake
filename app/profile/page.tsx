@@ -153,12 +153,6 @@ export default function ProfilePage() {
 
       {/* ★ 自分のプロフィールなのでフォローボタンは表示しない */}
       {/* 他人のプロフィールページを作るときはここに表示する */}
-      <Link
-        href={`/user/${authUser?.uid}/following`}
-        className="mt-3 inline-block text-[#1A2A4F] underline opacity-80"
-      >
-        フォロー中のユーザー
-      </Link>
 
       <button
         onClick={() => router.push("/profile/edit")}
@@ -175,6 +169,13 @@ export default function ProfilePage() {
         className="mt-3 px-4 py-2 bg-gray-200 text-[#1A2A4F] rounded-lg"
       >
         ログアウト
+      </button>
+
+      <button
+        onClick={() => router.push(`/user/${authUser?.uid}/following`)}
+        className="mt-3 px-4 py-2 bg-white border border-[#1A2A4F] text-[#1A2A4F] rounded-lg shadow-sm"
+      >
+        フォロー中のユーザー
       </button>
 
       <h3 className="mt-8 mb-3 text-lg font-semibold text-[#1A2A4F] opacity-90">

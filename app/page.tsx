@@ -178,7 +178,7 @@ export default function HomePage() {
           className={`pb-1 ${
             tab === "all"
               ? "font-bold text-[#1A2A4F] border-b-2 border-[#1A2A4F]"
-              : "opacity-60"
+              : "text-[#1A2A4F]/60"
           }`}
         >
           みんな
@@ -189,7 +189,7 @@ export default function HomePage() {
           className={`pb-1 ${
             tab === "following"
               ? "font-bold text-[#1A2A4F] border-b-2 border-[#1A2A4F]"
-              : "opacity-60"
+              : "text-[#1A2A4F]/60"
           }`}
         >
           フォロー中

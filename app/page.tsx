@@ -3,7 +3,13 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState, useRef } from "react";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import {
+  collection,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
+} from "firebase/firestore";
 import Link from "next/link";
 import HitoSakeCard from "@/components/HitoSakeCard";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
@@ -17,10 +23,13 @@ export default function HomePage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [showSearchIcon, setShowSearchIcon] = useState(true);
 
+  const [tab, setTab] = useState<"all" | "following">("all");
+  const [followees, setFollowees] = useState<string[]>([]);
+
   const lastScrollY = useRef(0);
 
   // -------------------------------
-  // Auth 状態取得（Google / 匿名どちらも対応）
+  // Auth 状態取得
   // -------------------------------
   useEffect(() => {
     const auth = getAuth();
@@ -29,10 +38,45 @@ export default function HomePage() {
   }, []);
 
   // -------------------------------
-  // Firestore リアルタイム取得（依存配列は空に）
+  // フォロー中ユーザー一覧取得
   // -------------------------------
   useEffect(() => {
-    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
+    if (!user) return;
+
+    const q = query(
+      collection(db, "follows"),
+      where("followerId", "==", user.uid),
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+      const ids = snap.docs.map((d) => d.data().followeeId);
+      setFollowees(ids);
+    });
+
+    return () => unsub();
+  }, [user]);
+
+  // -------------------------------
+  // 投稿取得（タブで分岐）
+  // -------------------------------
+  useEffect(() => {
+    let q;
+
+    if (tab === "all") {
+      q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
+    } else {
+      if (followees.length === 0) {
+        setPosts([]);
+        return;
+      }
+
+      q = query(
+        collection(db, "posts"),
+        where("userId", "in", followees),
+        orderBy("createdAt", "desc"),
+      );
+    }
+
     const unsub = onSnapshot(q, (snap) => {
       const newPosts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
@@ -51,7 +95,7 @@ export default function HomePage() {
     });
 
     return () => unsub();
-  }, []); // ← posts を外す
+  }, [tab, followees]);
 
   // -------------------------------
   // スクロール方向で検索アイコンの表示/非表示
@@ -67,6 +111,9 @@ export default function HomePage() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // -------------------------------
+  // 検索フィルタ
+  // -------------------------------
   const filtered = posts.filter((p) => {
     const t = queryText.toLowerCase();
     return (
@@ -78,7 +125,7 @@ export default function HomePage() {
 
   return (
     <div className="p-5 relative min-h-screen bg-[#FAF7F2]">
-      {/* 🔐 ログイン / プロフィール（右上へ移動） */}
+      {/* 🔐 ログイン / プロフィール */}
       <div className="fixed top-4 right-20 z-40">
         {user ? (
           <Link href="/profile">
@@ -95,7 +142,7 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* 🔍 検索アイコン（右端） */}
+      {/* 🔍 検索アイコン */}
       <button
         onClick={() => setSearchOpen(!searchOpen)}
         className={`
@@ -124,16 +171,48 @@ export default function HomePage() {
         タイムライン
       </h2>
 
+      {/* 🟦 タブ */}
+      <div className="flex gap-6 mb-4">
+        <button
+          onClick={() => setTab("all")}
+          className={`pb-1 ${
+            tab === "all"
+              ? "font-bold text-[#1A2A4F] border-b-2 border-[#1A2A4F]"
+              : "opacity-60"
+          }`}
+        >
+          みんな
+        </button>
+
+        <button
+          onClick={() => setTab("following")}
+          className={`pb-1 ${
+            tab === "following"
+              ? "font-bold text-[#1A2A4F] border-b-2 border-[#1A2A4F]"
+              : "opacity-60"
+          }`}
+        >
+          フォロー中
+        </button>
+      </div>
+
+      {/* 投稿がないとき */}
       {posts.length === 0 && (
-        <p className="mt-3 text-[#1A2A4F] opacity-80">まだ投稿がありません。</p>
+        <p className="mt-3 text-[#1A2A4F] opacity-80">
+          {tab === "all"
+            ? "まだ投稿がありません。"
+            : "フォロー中のユーザーの投稿がありません。"}
+        </p>
       )}
 
+      {/* 検索結果なし */}
       {filtered.length === 0 && queryText && (
         <p className="text-center text-[#1A2A4F] opacity-60 mt-10">
           まだ見つかりませんでした…
         </p>
       )}
 
+      {/* 投稿一覧 */}
       <div className="flex flex-col gap-4 mt-4">
         {filtered.map((p) => (
           <div

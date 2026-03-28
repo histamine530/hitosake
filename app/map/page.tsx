@@ -9,8 +9,8 @@ import HitoSakeCard from "@/components/HitoSakeCard";
 
 export default function MapPage() {
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstance = useRef<any>(null); // ← 型エラー回避
-  const markersRef = useRef<any[]>([]); // ← Marker[] を any に
+  const mapInstance = useRef<any>(null);
+  const markersRef = useRef<any[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
   const router = useRouter();
 
@@ -30,11 +30,12 @@ export default function MapPage() {
   // Google Map 初期化
   useEffect(() => {
     if (!mapRef.current) return;
-    if (!(window as any).google) return; // ← 型エラー回避
+    if (!(window as any).google) return;
 
     mapInstance.current = new (window as any).google.maps.Map(mapRef.current, {
       center: { lat: 35.6895, lng: 139.6917 },
       zoom: 14,
+      disableDefaultUI: true,
     });
   }, []);
 
@@ -99,7 +100,6 @@ export default function MapPage() {
           map: mapInstance.current!,
         });
 
-        // InfoWindow 内のボタンにイベント付与
         setTimeout(() => {
           const btn = document.getElementById(`detail-${p.id}`);
           if (btn) btn.onclick = () => router.push(`/post/${p.id}`);
@@ -108,21 +108,60 @@ export default function MapPage() {
     });
   }, [posts]);
 
+  // 📍 現在地に移動する関数
+  const handleMoveToCurrentLocation = () => {
+    if (!mapInstance.current) return;
+
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const loc = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+      };
+
+      mapInstance.current.setCenter(loc);
+      mapInstance.current.setZoom(16);
+
+      // 現在地マーカー（HitoSake カラー）
+      new (window as any).google.maps.Marker({
+        map: mapInstance.current,
+        position: loc,
+        icon: {
+          path: (window as any).google.maps.SymbolPath.CIRCLE,
+          scale: 6,
+          fillColor: "#1A2A4F",
+          fillOpacity: 1,
+          strokeWeight: 2,
+          strokeColor: "white",
+        },
+      });
+    });
+  };
+
   return (
     <div className="min-h-screen bg-[#FAF7F2] p-5">
       <h2 className="text-xl font-bold text-[#1A2A4F] opacity-90 mb-4">
         マップ
       </h2>
 
-      <div
-        ref={mapRef}
-        style={{
-          width: "100%",
-          height: "70vh",
-          borderRadius: 12,
-          marginTop: 10,
-        }}
-      />
+      {/* マップ + 現在地ボタン */}
+      <div className="relative" style={{ width: "100%", height: "70vh" }}>
+        <div
+          ref={mapRef}
+          style={{
+            width: "100%",
+            height: "100%",
+            borderRadius: 12,
+          }}
+        />
+
+        {/* 📍 現在地ボタン */}
+        <button
+          onClick={handleMoveToCurrentLocation}
+          className="absolute bottom-4 right-4 bg-white shadow-lg rounded-full p-3 z-10 text-[#1A2A4F]"
+        >
+          📍
+        </button>
+      </div>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
 } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function PostContent({
   postId,
@@ -57,8 +58,20 @@ export default function PostContent({
 
   return (
     <div className="mb-8 text-[#1A2A4F] [color:#1A2A4F] [-webkit-text-fill-color:#1A2A4F]">
+      {/* 🔥 店名リンク化 */}
       {post.placeName && (
-        <h2 className="text-2xl font-bold mb-3">{post.placeName}</h2>
+        <h2 className="text-2xl font-bold mb-3">
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+              post.placeName,
+            )}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:opacity-70 underline"
+          >
+            {post.placeName}
+          </a>
+        </h2>
       )}
 
       <div className="flex items-center gap-3 mb-4">
@@ -67,7 +80,13 @@ export default function PostContent({
           className="w-12 h-12 rounded-full object-cover"
         />
         <div>
-          <div className="font-semibold">{post.userName}</div>
+          {/* 投稿者名リンク化（前回実装済み） */}
+          <Link href={`/user/${post.userId}`}>
+            <span className="font-semibold hover:opacity-70">
+              {post.userName}
+            </span>
+          </Link>
+
           <div className="text-sm opacity-80">{created}</div>
         </div>
       </div>

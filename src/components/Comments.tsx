@@ -97,13 +97,22 @@ export default function Comments({
             key={c.id}
             className="flex items-start gap-3 bg-white p-3 rounded-lg shadow-sm"
           >
-            <img
-              src={userPhoto}
-              className="w-10 h-10 rounded-full object-cover"
-            />
+            {/* 🔥 アイコンをリンク化 */}
+            <Link href={`/user/${c.userId}`}>
+              <img
+                src={userPhoto}
+                className="w-10 h-10 rounded-full object-cover hover:opacity-80 transition"
+              />
+            </Link>
 
             <div className="flex-1 flex flex-col">
-              <p className="font-semibold">{c.userName}</p>
+              {/* 🔥 ユーザー名をリンク化 */}
+              <Link href={`/user/${c.userId}`}>
+                <p className="font-semibold hover:opacity-70 transition">
+                  {c.userName}
+                </p>
+              </Link>
+
               <p className="text-sm opacity-90 whitespace-pre-line">{c.text}</p>
               <p className="text-xs text-gray-600 mt-1">{created}</p>
 
@@ -162,12 +171,12 @@ export default function Comments({
           <button
             onClick={send}
             className="
-    bg-[#1A2A4F]
-    text-white
-    [-webkit-text-fill-color:white]
-    [color:white]
-    px-4 rounded
-  "
+              bg-[#1A2A4F]
+              text-white
+              [-webkit-text-fill-color:white]
+              [color:white]
+              px-4 rounded
+            "
           >
             送信
           </button>

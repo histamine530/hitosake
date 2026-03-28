@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 type HitoSakeCardProps = {
   images?: string[];
@@ -8,6 +9,7 @@ type HitoSakeCardProps = {
   text?: string;
   userPhoto?: string;
   userName?: string;
+  userId?: string; // ★ 他人プロフィールへ飛ぶために追加
   createdAt?: any; // Firestore Timestamp or string
 };
 
@@ -17,6 +19,7 @@ export default function HitoSakeCard({
   text = "",
   userPhoto = "",
   userName = "",
+  userId = "",
   createdAt,
 }: HitoSakeCardProps) {
   // createdAt が Timestamp の場合に安全に文字列へ変換
@@ -36,17 +39,19 @@ export default function HitoSakeCard({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 投稿者 */}
-      <div className="flex items-center gap-3">
-        <img
-          src={userPhoto || "/default.png"}
-          className="w-10 h-10 rounded-full object-cover"
-        />
-        <div>
-          <p className="font-semibold text-[#1A2A4F]">{userName}</p>
-          <p className="text-xs text-gray-500">{formattedDate}</p>
+      {/* 投稿者（★ プロフィールへリンク） */}
+      <Link href={`/user/${userId}`}>
+        <div className="flex items-center gap-3 cursor-pointer">
+          <img
+            src={userPhoto || "/default.png"}
+            className="w-10 h-10 rounded-full object-cover"
+          />
+          <div>
+            <p className="font-semibold text-[#1A2A4F]">{userName}</p>
+            <p className="text-xs text-gray-500">{formattedDate}</p>
+          </div>
         </div>
-      </div>
+      </Link>
 
       {/* 本文 */}
       <p className="text-[#1A2A4F] opacity-90 whitespace-pre-line leading-relaxed">
@@ -89,7 +94,20 @@ export default function HitoSakeCard({
 
       {/* フッター */}
       <div className="flex items-center justify-between text-sm text-gray-600">
-        <span className="opacity-80">{placeName}</span>
+        {placeName ? (
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+              placeName,
+            )}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="opacity-80 text-blue-600 underline"
+          >
+            {placeName}
+          </a>
+        ) : (
+          <span className="opacity-80">{placeName}</span>
+        )}
       </div>
     </div>
   );

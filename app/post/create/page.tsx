@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db, storage } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  doc,
+  getDoc,
+} from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 export default function CreatePostPage() {
@@ -12,6 +18,23 @@ export default function CreatePostPage() {
   const [images, setImages] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // ★ 投稿者のプロフィール情報を取得（userName / userPhoto 用）
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const fetchProfile = async () => {
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (snap.exists()) {
+        setProfile(snap.data());
+      }
+    };
+
+    fetchProfile();
+  }, []);
 
   // 画像選択
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -45,12 +68,16 @@ export default function CreatePostPage() {
         imageUrls.push(url);
       }
 
-      // Firestore に保存
+      // ★ Firestore に保存（userName / userPhoto / userId を追加）
       await addDoc(collection(db, "posts"), {
         text: text.trim(),
         images: imageUrls,
         createdAt: serverTimestamp(),
-        uid: user.uid,
+
+        // ★ ここが重要
+        userId: user.uid,
+        userName: profile?.userName || "名無し",
+        userPhoto: profile?.userPhoto || "",
       });
 
       router.push("/");

@@ -2,37 +2,40 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
-import { auth, db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import {
+  doc,
+  getDoc,
   collection,
   query,
   where,
   orderBy,
   onSnapshot,
-  doc,
-  getDoc,
 } from "firebase/firestore";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import HitoSakeCard from "@/components/HitoSakeCard";
 
-// ★ フォロー機能
 import {
   followUser,
   unfollowUser,
   isFollowing,
 } from "@/services/followService";
 
-export default function ProfilePage() {
-  const [posts, setPosts] = useState<any[]>([]);
+export default function UserProfilePage() {
+  const params = useParams();
+  const rawUid = params?.uid;
+  const uid = Array.isArray(rawUid) ? rawUid[0] : (rawUid ?? "");
+
+  const router = useRouter();
+
   const [authUser, setAuthUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // ★ フォロー状態
   const [following, setFollowing] = useState(false);
-
-  const router = useRouter();
 
   // 🔐 ログイン状態の監視
   useEffect(() => {
@@ -43,91 +46,75 @@ export default function ProfilePage() {
     return () => unsub();
   }, []);
 
-  // 👤 プロフィール情報
+  // 👤 プロフィール情報取得
   useEffect(() => {
-    if (!authUser) return;
+    if (!uid) return;
 
-    const unsub = onSnapshot(doc(db, "users", authUser.uid), (snap) => {
+    const fetchProfile = async () => {
+      const snap = await getDoc(doc(db, "users", uid));
       if (snap.exists()) {
         setProfile(snap.data());
       }
-    });
+    };
 
-    return () => unsub();
-  }, [authUser]);
+    fetchProfile();
+  }, [uid]);
 
-  // 📝 自分の投稿一覧
+  // 📝 投稿一覧取得
   useEffect(() => {
-    if (!authUser) return;
+    if (!uid) return;
 
     const q = query(
       collection(db, "posts"),
-      where("userId", "==", authUser.uid),
+      where("userId", "==", uid),
       orderBy("createdAt", "desc"),
     );
 
     const unsub = onSnapshot(q, (snap) => {
-      const list = snap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
       }));
       setPosts(list);
     });
 
     return () => unsub();
-  }, [authUser]);
+  }, [uid]);
 
-  // ★ フォロー状態チェック（※自分のページでは使わないが、他人ページ用に残す）
+  // ★ フォロー状態チェック
   useEffect(() => {
     const check = async () => {
-      if (!authUser || !profile) return;
-      if (authUser.uid === profile.uid) return; // 自分自身はフォローしない
+      if (!authUser || !uid) return;
+      if (authUser.uid === uid) return; // 自分自身はフォローしない
 
-      const result = await isFollowing(authUser.uid, profile.uid);
+      const result = await isFollowing(authUser.uid, uid);
       setFollowing(result);
     };
     check();
-  }, [authUser, profile]);
+  }, [authUser, uid]);
 
-  // ★ フォロー/解除ボタン
+  // ★ フォロー/解除
   const handleFollow = async () => {
-    if (!authUser || !profile) return;
+    if (!authUser) return router.push("/login?redirect=/user/" + uid);
 
     if (following) {
-      await unfollowUser(authUser.uid, profile.uid);
+      await unfollowUser(authUser.uid, uid);
       setFollowing(false);
     } else {
-      await followUser(authUser.uid, profile.uid);
+      await followUser(authUser.uid, uid);
       setFollowing(true);
     }
   };
 
   // -------------------------
 
-  if (loading) {
+  if (loading || !profile) {
     return (
       <div className="p-5">
         <h2 className="text-xl font-bold text-[#1A2A4F] opacity-90">
           プロフィール
         </h2>
         <p className="text-[#1A2A4F] opacity-80">読み込み中...</p>
-      </div>
-    );
-  }
-
-  if (!authUser) {
-    return (
-      <div className="p-5 text-center">
-        <h2 className="text-xl font-bold text-[#1A2A4F] opacity-90 mb-4">
-          プロフィール
-        </h2>
-        <p className="text-[#1A2A4F] opacity-80 mb-6">ログインしてください。</p>
-
-        <Link href="/login?redirect=/profile">
-          <button className="px-5 py-3 bg-[#1A2A4F] text-white rounded-xl shadow">
-            ログインする
-          </button>
-        </Link>
       </div>
     );
   }
@@ -140,39 +127,31 @@ export default function ProfilePage() {
 
       <div className="flex items-center gap-4 mt-4">
         <img
-          src={profile?.userPhoto || "/default.png"}
+          src={profile.userPhoto || "/default.png"}
           className="w-16 h-16 rounded-full"
         />
         <div>
           <div className="text-lg font-bold text-[#1A2A4F]">
-            {profile?.userName}
+            {profile.userName}
           </div>
-          <div className="text-sm text-gray-700">{authUser.email}</div>
+          <div className="text-sm text-gray-700">{profile.email}</div>
         </div>
       </div>
 
-      {/* ★ 自分のプロフィールなのでフォローボタンは表示しない */}
-      {/* 他人のプロフィールページを作るときはここに表示する */}
-
-      <button
-        onClick={() => router.push("/profile/edit")}
-        className="mt-4 px-4 py-2 bg-[#1A2A4F] text-white rounded-lg"
-      >
-        編集する
-      </button>
-
-      <button
-        onClick={async () => {
-          await auth.signOut();
-          router.push("/");
-        }}
-        className="mt-3 px-4 py-2 bg-gray-200 text-[#1A2A4F] rounded-lg"
-      >
-        ログアウト
-      </button>
+      {/* ★ フォローボタン（自分以外のときだけ） */}
+      {authUser?.uid !== uid && (
+        <button
+          onClick={handleFollow}
+          className={`mt-4 px-4 py-2 rounded-lg ${
+            following ? "bg-gray-300 text-[#1A2A4F]" : "bg-[#1A2A4F] text-white"
+          }`}
+        >
+          {following ? "フォロー中" : "フォローする"}
+        </button>
+      )}
 
       <h3 className="mt-8 mb-3 text-lg font-semibold text-[#1A2A4F] opacity-90">
-        あなたの投稿一覧
+        投稿一覧
       </h3>
 
       {posts.length === 0 && (

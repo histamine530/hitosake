@@ -64,6 +64,9 @@ export default function PostPage() {
   // 🔘 店選択 UI の表示制御
   const [placeUIVisible, setPlaceUIVisible] = useState(false);
 
+  // 🔘 店一覧アコーディオン
+  const [showPlaceList, setShowPlaceList] = useState(true);
+
   // -----------------------------
   // 🔐 Auth
   // -----------------------------
@@ -155,6 +158,7 @@ export default function PostPage() {
 
       marker.addListener("click", () => {
         setSelectedPlace(p);
+        setShowPlaceList(false); // ← アコーディオン閉じる
       });
 
       newMarkers.push(marker);
@@ -248,6 +252,7 @@ export default function PostPage() {
 
       setPlaces(filtered);
       setPlaceError("");
+      setShowPlaceList(true); // ← 初回は開く
     });
   };
 
@@ -389,8 +394,9 @@ export default function PostPage() {
                     setSelectedPlace(s);
                     setSuggestions([]);
                     setSearchText(s.name);
+                    setShowPlaceList(false); // ← アコーディオン閉じる
                   }}
-                  className="p-3 border-b last:border-none cursor-pointer hover:bg-gray-100"
+                  className="p-3 border-b last:border-none cursor-pointer hover:bg-gray-100 text-[#1A2A4F]"
                 >
                   {s.name}
                 </div>
@@ -411,32 +417,36 @@ export default function PostPage() {
             </div>
           )}
 
-          {/* 店が見つからなかった時 */}
-          {placeError && (
-            <p className="text-center text-red-600 font-semibold mb-4">
-              {placeError}
-            </p>
-          )}
-
-          {/* 店リスト（既存） */}
+          {/* 店一覧アコーディオン */}
           {places.length > 0 && (
             <div className="mb-4">
-              <h3 className="font-bold text-[#1A2A4F] mb-2">お店を選択</h3>
-              <div className="space-y-2">
-                {places.map((p) => (
-                  <button
-                    key={p.place_id}
-                    onClick={() => setSelectedPlace(p)}
-                    className={`w-full text-left p-3 rounded-lg border ${
-                      selectedPlace?.place_id === p.place_id
-                        ? "bg-[#1A2A4F] text-white"
-                        : "bg-white text-[#1A2A4F]"
-                    }`}
-                  >
-                    {p.name}
-                  </button>
-                ))}
-              </div>
+              <button
+                onClick={() => setShowPlaceList(!showPlaceList)}
+                className="text-[#1A2A4F] underline mb-2"
+              >
+                {showPlaceList ? "お店一覧を閉じる" : "他のお店を選ぶ"}
+              </button>
+
+              {showPlaceList && (
+                <div className="space-y-2 mt-2">
+                  {places.map((p) => (
+                    <button
+                      key={p.place_id}
+                      onClick={() => {
+                        setSelectedPlace(p);
+                        setShowPlaceList(false); // ← 選択後閉じる
+                      }}
+                      className={`w-full text-left p-3 rounded-lg border ${
+                        selectedPlace?.place_id === p.place_id
+                          ? "bg-[#1A2A4F] text-white"
+                          : "bg-white text-[#1A2A4F]"
+                      }`}
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </>

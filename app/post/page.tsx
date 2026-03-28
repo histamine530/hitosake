@@ -495,23 +495,30 @@ export default function PostPage() {
                           map.setZoom(17);
                         }
 
-                        // ラベル表示
+                        // 既存ラベルを閉じる
                         infoWindowRef.current?.close();
-                        const info = new (window as any).google.maps.InfoWindow(
-                          {
+
+                        if (ll && map) {
+                          // 新しいマーカーを作る
+                          const marker = new (window as any).google.maps.Marker(
+                            {
+                              map,
+                              position: ll,
+                            },
+                          );
+
+                          // 店名ラベル
+                          const info = new (
+                            window as any
+                          ).google.maps.InfoWindow({
                             content: `<div style="font-size:14px;color:#1A2A4F;">${p.name}</div>`,
-                          },
-                        );
-                        info.open(
-                          map,
-                          mapMarkers.find((m) => {
-                            const pos = m.getPosition();
-                            return pos.lat() === ll.lat && pos.lng() === ll.lng;
-                          }),
-                        );
-                        infoWindowRef.current = info;
+                          });
+
+                          info.open(map, marker);
+                          infoWindowRef.current = info;
+                        }
                       }}
-                      className={`w-full text-left p-3 rounded-lg border ${
+                      className={`w-full text左 p-3 rounded-lg border ${
                         selectedPlace?.place_id === p.place_id
                           ? "bg-[#1A2A4F] text-white"
                           : "bg-white text-[#1A2A4F]"

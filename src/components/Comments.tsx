@@ -10,6 +10,7 @@ import {
   updateDoc,
   arrayUnion,
   arrayRemove,
+  getDoc,
 } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import Link from "next/link";
@@ -35,14 +36,20 @@ export default function Comments({
     return () => unsub();
   }, []);
 
+  // 🔥 コメント送信（HitoSake の userName / userPhoto を使用）
   const send = async () => {
     if (!user) return;
     if (!commentText.trim()) return;
 
+    // Firestore から HitoSake のユーザープロフィールを取得
+    const userRef = doc(db, "users", user.uid);
+    const snap = await getDoc(userRef);
+    const profile = snap.data();
+
     await addDoc(collection(db, "posts", postId, "comments"), {
       text: commentText,
-      userName: user.displayName || "名無し",
-      userPhoto: user.photoURL || "/default.png",
+      userName: profile?.userName || "名無し",
+      userPhoto: profile?.userPhoto || "/default.png",
       userId: user.uid,
       likes: [],
       createdAt: serverTimestamp(),

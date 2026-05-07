@@ -1,6 +1,20 @@
 "use client";
 export const dynamic = "force-dynamic";
 
+import { useState, useEffect, useRef } from "react";
+import { db, storage } from "@/lib/firebase";
+import {
+  addDoc,
+  collection,
+  serverTimestamp,
+  doc,
+  getDoc,
+} from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+
 // -----------------------------
 // 距離計算（既存）
 // -----------------------------
@@ -39,20 +53,9 @@ const getLatLng = (place: any) => {
   return { lat, lng };
 };
 
-import { useState, useEffect, useRef } from "react";
-import { db, storage } from "@/lib/firebase";
-import {
-  addDoc,
-  collection,
-  serverTimestamp,
-  doc,
-  getDoc,
-} from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
-import Link from "next/link";
-
 export default function PostPage() {
+  const router = useRouter();
+
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [location, setLocation] = useState<any>(null);
@@ -65,22 +68,16 @@ export default function PostPage() {
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
 
-  // 🔍 店名検索
   const [searchText, setSearchText] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
 
-  // 🗺️ ミニマップ
   const mapRef = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<any>(null);
   const [mapMarkers, setMapMarkers] = useState<any[]>([]);
 
-  // 🔘 店選択 UI の表示制御
   const [placeUIVisible, setPlaceUIVisible] = useState(false);
-
-  // 🔘 店一覧アコーディオン
   const [showPlaceList, setShowPlaceList] = useState(true);
 
-  // 🏷️ InfoWindow（店名ラベル）
   const infoWindowRef = useRef<any>(null);
 
   // -----------------------------
@@ -126,7 +123,6 @@ export default function PostPage() {
   useEffect(() => {
     if (!map) return;
 
-    // 既存ピン削除
     mapMarkers.forEach((m) => m.setMap(null));
 
     const newMarkers: any[] = [];
@@ -140,7 +136,6 @@ export default function PostPage() {
         position: ll,
       });
 
-      // 店名ラベル
       const info = new (window as any).google.maps.InfoWindow({
         content: `<div style="font-size:14px;color:#1A2A4F;">${p.name}</div>`,
       });
@@ -300,16 +295,13 @@ export default function PostPage() {
       map.setZoom(17);
     }
 
-    // 既存ピン削除
     mapMarkers.forEach((m) => m.setMap(null));
 
-    // 新しいピン
     const marker = new (window as any).google.maps.Marker({
       map,
       position: ll,
     });
 
-    // 店名ラベル
     const info = new (window as any).google.maps.InfoWindow({
       content: `<div style="font-size:14px;color:#1A2A4F;">${place.name}</div>`,
     });
@@ -322,7 +314,7 @@ export default function PostPage() {
   };
 
   // -----------------------------
-  // 📝 投稿処理（既存）
+  // 📝 投稿処理
   // -----------------------------
   const handlePost = async () => {
     if (!user || posting) return;
@@ -354,9 +346,7 @@ export default function PostPage() {
       createdAt: serverTimestamp(),
     });
 
-    setText("");
-    setFiles([]);
-    setPosting(false);
+    router.push("/home");
   };
 
   // -----------------------------
@@ -389,7 +379,17 @@ export default function PostPage() {
   }
 
   return (
-    <div className="p-5 bg-[#FAF7F2] min-h-screen">
+    <div className="p-5 bg-[#FAF7F2] min-h-screen relative">
+      {/* 🔥 投稿中ポップアップ */}
+      {posting && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white px-6 py-4 rounded-xl shadow text-[#1A2A4F] flex flex-col items-center">
+            <div className="animate-spin h-6 w-6 border-4 border-[#1A2A4F] border-t-transparent rounded-full mb-3"></div>
+            <p className="font-semibold">投稿中…</p>
+          </div>
+        </div>
+      )}
+
       <h2 className="text-xl font-bold mb-5 text-[#1A2A4F]">
         今日の一杯を投稿
       </h2>
@@ -495,11 +495,9 @@ export default function PostPage() {
                           map.setZoom(17);
                         }
 
-                        // 既存ラベルを閉じる
                         infoWindowRef.current?.close();
 
                         if (ll && map) {
-                          // 新しいマーカーを作る
                           const marker = new (window as any).google.maps.Marker(
                             {
                               map,
@@ -507,7 +505,6 @@ export default function PostPage() {
                             },
                           );
 
-                          // 店名ラベル
                           const info = new (
                             window as any
                           ).google.maps.InfoWindow({
@@ -518,7 +515,7 @@ export default function PostPage() {
                           infoWindowRef.current = info;
                         }
                       }}
-                      className={`w-full text左 p-3 rounded-lg border ${
+                      className={`w-full text-left p-3 rounded-lg border ${
                         selectedPlace?.place_id === p.place_id
                           ? "bg-[#1A2A4F] text-white"
                           : "bg-white text-[#1A2A4F]"

@@ -346,7 +346,7 @@ export default function PostPage() {
       createdAt: serverTimestamp(),
     });
 
-    router.push("/home");
+    router.push("/");
   };
 
   // -----------------------------
